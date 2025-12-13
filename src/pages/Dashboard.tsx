@@ -59,9 +59,27 @@ const defaultWidgets: WidgetConfig[] = [
   { id: "voltage-1", type: "voltage", title: "System Voltage" },
 ];
 
+const STORAGE_KEY_LAYOUTS = "cockpit-layouts";
+const STORAGE_KEY_WIDGETS = "cockpit-widgets";
+
 export default function Dashboard() {
-  const [layouts, setLayouts] = useState<LayoutItem[]>(defaultLayouts);
-  const [widgets, setWidgets] = useState<WidgetConfig[]>(defaultWidgets);
+  const [layouts, setLayouts] = useState<LayoutItem[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_LAYOUTS);
+    return saved ? JSON.parse(saved) : defaultLayouts;
+  });
+  const [widgets, setWidgets] = useState<WidgetConfig[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_WIDGETS);
+    return saved ? JSON.parse(saved) : defaultWidgets;
+  });
+
+  // Persist to localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_LAYOUTS, JSON.stringify(layouts));
+  }, [layouts]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_WIDGETS, JSON.stringify(widgets));
+  }, [widgets]);
 
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -70,7 +88,18 @@ export default function Dashboard() {
   });
 
   const handleLayoutChange = (newLayout: LayoutItem[]) => {
-    setLayouts(newLayout);
+    // Preserve min/max constraints when layout changes
+    const updatedLayout = newLayout.map((item) => {
+      const existing = layouts.find((l) => l.i === item.i);
+      return {
+        ...item,
+        minW: existing?.minW ?? 1,
+        maxW: existing?.maxW ?? 3,
+        minH: existing?.minH ?? 2,
+        maxH: existing?.maxH ?? 4,
+      };
+    });
+    setLayouts(updatedLayout);
   };
 
   const addWidget = (type: string, title: string) => {
