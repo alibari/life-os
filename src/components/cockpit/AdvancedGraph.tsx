@@ -5,7 +5,6 @@ const generateData = () => {
   const data = [];
   const today = new Date();
   
-  // Past 15 days
   for (let i = 14; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
@@ -16,7 +15,6 @@ const generateData = () => {
     });
   }
   
-  // 7 day prediction
   for (let i = 1; i <= 7; i++) {
     const date = new Date(today);
     date.setDate(date.getDate() + i);
@@ -41,34 +39,34 @@ export const AdvancedGraph = () => {
   );
 
   return (
-    <div className="card-surface p-3 h-full flex flex-col">
-      <div className="flex items-center justify-between mb-2">
+    <div className="card-surface p-4 h-full flex flex-col">
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <TrendingUp className="h-3.5 w-3.5 text-primary" />
-          <span className="font-mono text-[10px] tracking-wider text-muted-foreground">
-            PERFORMANCE TREND
+          <TrendingUp className="h-4 w-4 text-primary" />
+          <span className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+            Performance Trend
           </span>
         </div>
-        <div className="flex items-center gap-1">
-          <Calendar className="h-3 w-3 text-muted-foreground" />
-          <span className="text-[10px] text-muted-foreground">15D + 7D</span>
+        <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/50 rounded-md">
+          <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground font-mono">15D + 7D</span>
         </div>
       </div>
 
-      <div className="flex gap-4 mb-2">
+      <div className="flex gap-6 mb-4">
         <div>
-          <div className="font-mono text-lg font-bold text-foreground">{currentScore}</div>
-          <div className="text-[9px] text-muted-foreground">Today</div>
+          <div className="font-mono text-2xl font-bold text-foreground">{currentScore}</div>
+          <div className="text-xs text-muted-foreground">Today</div>
         </div>
         <div>
-          <div className="font-mono text-lg font-bold text-muted-foreground">{avgScore}</div>
-          <div className="text-[9px] text-muted-foreground">15D Avg</div>
+          <div className="font-mono text-2xl font-bold text-muted-foreground">{avgScore}</div>
+          <div className="text-xs text-muted-foreground">15D Avg</div>
         </div>
       </div>
 
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+          <AreaChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
@@ -81,14 +79,14 @@ export const AdvancedGraph = () => {
             </defs>
             <XAxis 
               dataKey="date" 
-              tick={{ fontSize: 8, fill: "hsl(var(--muted-foreground))" }}
+              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
               axisLine={false}
               tickLine={false}
               interval="preserveStartEnd"
             />
             <YAxis 
               domain={[40, 100]}
-              tick={{ fontSize: 8, fill: "hsl(var(--muted-foreground))" }}
+              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
               axisLine={false}
               tickLine={false}
             />
@@ -113,14 +111,14 @@ export const AdvancedGraph = () => {
         </ResponsiveContainer>
       </div>
 
-      <div className="flex gap-3 mt-1 pt-1 border-t border-border">
-        <div className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded-full bg-primary" />
-          <span className="text-[9px] text-muted-foreground">Actual</span>
+      <div className="flex gap-4 mt-2 pt-3 border-t border-border">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-primary" />
+          <span className="text-xs text-muted-foreground">Actual</span>
         </div>
-        <div className="flex items-center gap-1">
-          <div className="w-2 h-0.5 bg-secondary" style={{ borderBottom: "2px dashed" }} />
-          <span className="text-[9px] text-muted-foreground">Predicted</span>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-[2px] bg-secondary border-dashed" />
+          <span className="text-xs text-muted-foreground">Predicted</span>
         </div>
       </div>
     </div>
