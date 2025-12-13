@@ -1,123 +1,103 @@
-import { useState } from "react";
-import { Zap, Coffee, Smartphone, Dumbbell, Brain, Snowflake } from "lucide-react";
+import { Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface DopamineInput {
-  id: string;
-  name: string;
-  icon: React.ReactNode;
-  value: number;
-  type: "earned" | "cheap";
-  logged: boolean;
-}
-
-const defaultInputs: DopamineInput[] = [
-  { id: "cold", name: "Cold Plunge", icon: <Snowflake className="h-4 w-4" />, value: 25, type: "earned", logged: false },
-  { id: "workout", name: "Workout", icon: <Dumbbell className="h-4 w-4" />, value: 30, type: "earned", logged: false },
-  { id: "deepwork", name: "Deep Work", icon: <Brain className="h-4 w-4" />, value: 20, type: "earned", logged: false },
-  { id: "social", name: "Social Media", icon: <Smartphone className="h-4 w-4" />, value: -20, type: "cheap", logged: false },
-  { id: "sugar", name: "Sugar", icon: <Coffee className="h-4 w-4" />, value: -15, type: "cheap", logged: false },
-];
+// Mock data - will be connected to other pages/widgets later
+const mockData = {
+  earnedDopamine: 55, // From workouts, cold plunges, deep work
+  cheapDopamine: 20,  // From social media, sugar, etc.
+};
 
 export const DopamineDelta = () => {
-  const [inputs, setInputs] = useState<DopamineInput[]>(defaultInputs);
-
-  const toggleInput = (id: string) => {
-    setInputs(prev => prev.map(input => 
-      input.id === id ? { ...input, logged: !input.logged } : input
-    ));
-  };
-
-  const totalDelta = inputs.reduce((acc, input) => 
-    input.logged ? acc + input.value : acc, 0
-  );
-
+  const totalDelta = mockData.earnedDopamine - mockData.cheapDopamine;
+  
   // Normalize to -100 to +100 range, then to 0-100 for display
   const normalizedDelta = Math.max(-100, Math.min(100, totalDelta));
   const barPosition = ((normalizedDelta + 100) / 200) * 100;
 
   const getStatus = () => {
-    if (normalizedDelta > 20) return { label: "PRIMED", color: "text-emerald-400" };
-    if (normalizedDelta > -20) return { label: "BALANCED", color: "text-blue-400" };
-    return { label: "DEPLETED", color: "text-red-400" };
+    if (normalizedDelta > 20) return { label: "PRIMED", color: "text-emerald-400", glow: "shadow-[0_0_20px_rgba(16,185,129,0.4)]" };
+    if (normalizedDelta > -20) return { label: "BALANCED", color: "text-blue-400", glow: "shadow-[0_0_20px_rgba(59,130,246,0.4)]" };
+    return { label: "DEPLETED", color: "text-red-400", glow: "shadow-[0_0_20px_rgba(239,68,68,0.4)]" };
   };
 
   const status = getStatus();
 
   return (
-    <div className="h-full card-surface p-4 flex flex-col">
-      <div className="flex items-center justify-between mb-4">
+    <div className="h-full card-surface p-4 flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3 shrink-0">
         <div className="flex items-center gap-2">
-          <Zap className="h-5 w-5 text-emerald-400" />
-          <h3 className="font-mono text-sm font-bold text-foreground">DOPAMINE DELTA</h3>
+          <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+            <Zap className="h-4 w-4 text-emerald-400" />
+          </div>
+          <h3 className="font-mono text-xs font-bold text-foreground uppercase tracking-wider">Dopamine Delta</h3>
         </div>
-        <span className={cn("font-mono text-xs font-bold", status.color)}>
+        <span className={cn("font-mono text-[10px] font-bold px-2 py-0.5 rounded-full bg-card border border-border", status.color)}>
           {status.label}
         </span>
       </div>
 
-      {/* Balance Bar */}
-      <div className="relative mb-4">
-        <div className="h-8 rounded-full bg-zinc-900 border border-border overflow-hidden relative">
-          {/* Gradient background */}
-          <div className="absolute inset-0 flex">
-            <div className="w-1/2 bg-gradient-to-r from-red-500/30 to-zinc-800" />
-            <div className="w-1/2 bg-gradient-to-r from-zinc-800 to-emerald-500/30" />
+      {/* Main Visual - Responsive */}
+      <div className="flex-1 flex flex-col justify-center min-h-0">
+        {/* Balance Bar */}
+        <div className="relative mb-3">
+          <div className={cn(
+            "h-12 rounded-2xl bg-zinc-900/80 border border-border overflow-hidden relative transition-shadow duration-500",
+            status.glow
+          )}>
+            {/* Gradient background */}
+            <div className="absolute inset-0 flex">
+              <div className="w-1/2 bg-gradient-to-r from-red-500/20 via-red-500/10 to-transparent" />
+              <div className="w-1/2 bg-gradient-to-l from-emerald-500/20 via-emerald-500/10 to-transparent" />
+            </div>
+            
+            {/* Center marker */}
+            <div className="absolute left-1/2 top-2 bottom-2 w-px bg-zinc-600" />
+            
+            {/* Delta indicator orb */}
+            <div 
+              className="absolute top-1/2 -translate-y-1/2 w-8 h-8 rounded-full transition-all duration-700 ease-out flex items-center justify-center"
+              style={{ 
+                left: `calc(${barPosition}% - 16px)`,
+                background: normalizedDelta >= 0 
+                  ? 'linear-gradient(135deg, #10b981, #059669)' 
+                  : 'linear-gradient(135deg, #ef4444, #dc2626)',
+                boxShadow: normalizedDelta >= 0 
+                  ? '0 0 20px #10b981, inset 0 1px 0 rgba(255,255,255,0.2)' 
+                  : '0 0 20px #ef4444, inset 0 1px 0 rgba(255,255,255,0.2)'
+              }}
+            >
+              <span className="font-mono text-[10px] font-bold text-white drop-shadow-lg">
+                {normalizedDelta >= 0 ? '+' : ''}{normalizedDelta}
+              </span>
+            </div>
           </div>
           
-          {/* Center marker */}
-          <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-zinc-500 z-10" />
-          
-          {/* Delta indicator */}
-          <div 
-            className="absolute top-1 bottom-1 w-4 rounded-full transition-all duration-500 ease-out z-20"
-            style={{ 
-              left: `calc(${barPosition}% - 8px)`,
-              background: normalizedDelta >= 0 
-                ? 'linear-gradient(180deg, #10b981, #059669)' 
-                : 'linear-gradient(180deg, #ef4444, #dc2626)',
-              boxShadow: normalizedDelta >= 0 
-                ? '0 0 12px #10b981' 
-                : '0 0 12px #ef4444'
-            }}
-          />
+          {/* Scale labels */}
+          <div className="flex justify-between mt-2 px-1">
+            <span className="font-mono text-[9px] text-red-400/60 uppercase tracking-wider">Deficit</span>
+            <span className="font-mono text-[9px] text-muted-foreground">0</span>
+            <span className="font-mono text-[9px] text-emerald-400/60 uppercase tracking-wider">Surplus</span>
+          </div>
         </div>
-        
-        {/* Labels */}
-        <div className="flex justify-between mt-1">
-          <span className="font-mono text-[10px] text-red-400/70">DEFICIT</span>
-          <span className="font-mono text-[10px] text-muted-foreground">
-            {normalizedDelta >= 0 ? '+' : ''}{normalizedDelta}
-          </span>
-          <span className="font-mono text-[10px] text-emerald-400/70">SURPLUS</span>
-        </div>
-      </div>
 
-      {/* Input Buttons */}
-      <div className="flex-1 grid grid-cols-2 gap-2">
-        {inputs.map((input) => (
-          <button
-            key={input.id}
-            onClick={() => toggleInput(input.id)}
-            className={cn(
-              "flex items-center gap-2 p-2 rounded-lg border transition-all duration-200 btn-press",
-              input.logged
-                ? input.type === "earned"
-                  ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400"
-                  : "bg-red-500/20 border-red-500/50 text-red-400"
-                : "bg-zinc-900/50 border-border text-muted-foreground hover:border-zinc-600"
-            )}
-          >
-            {input.icon}
-            <span className="font-mono text-[10px] truncate">{input.name}</span>
-            <span className={cn(
-              "ml-auto font-mono text-[10px]",
-              input.value > 0 ? "text-emerald-400" : "text-red-400"
-            )}>
-              {input.value > 0 ? '+' : ''}{input.value}
-            </span>
-          </button>
-        ))}
+        {/* Stats Row */}
+        <div className="grid grid-cols-2 gap-2 shrink-0">
+          <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+            <div className="flex-1 min-w-0">
+              <p className="font-mono text-[9px] text-muted-foreground">EARNED</p>
+              <p className="font-mono text-sm font-bold text-emerald-400">+{mockData.earnedDopamine}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 p-2 rounded-lg bg-red-500/5 border border-red-500/10">
+            <div className="w-2 h-2 rounded-full bg-red-500" />
+            <div className="flex-1 min-w-0">
+              <p className="font-mono text-[9px] text-muted-foreground">CHEAP</p>
+              <p className="font-mono text-sm font-bold text-red-400">-{mockData.cheapDopamine}</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
