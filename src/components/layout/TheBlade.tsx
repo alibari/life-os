@@ -8,18 +8,20 @@ import {
   Brain,
   Eye,
   Settings,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface TheBladeProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  collapsed: boolean;
+  onToggle: () => void;
 }
 
 const navItems = [
@@ -33,74 +35,99 @@ const navItems = [
   { icon: Settings, label: "VAULT", path: "/vault", description: "Settings" },
 ];
 
-export function TheBlade({ open, onOpenChange }: TheBladeProps) {
+export function TheBlade({ collapsed, onToggle }: TheBladeProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const handleNavigation = (path: string) => {
-    navigate(path);
-    onOpenChange(false);
-  };
-
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="left"
-        className="w-72 border-r border-border bg-background/80 backdrop-blur-xl p-0"
-      >
-        <SheetHeader className="p-6 border-b border-border">
-          <SheetTitle className="font-mono text-lg tracking-wider text-foreground">
+    <aside
+      className={cn(
+        "h-screen sticky top-0 flex flex-col border-r border-border bg-background transition-all duration-300",
+        collapsed ? "w-16" : "w-56"
+      )}
+    >
+      {/* Logo */}
+      <div className="p-4 border-b border-border flex items-center justify-between h-14">
+        {!collapsed && (
+          <h1 className="font-mono text-sm tracking-wider">
             <span className="text-primary">LIFE</span>
             <span className="text-muted-foreground">_OS</span>
-          </SheetTitle>
-        </SheetHeader>
+          </h1>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggle}
+          className="h-8 w-8 btn-press"
+        >
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </Button>
+      </div>
 
-        <nav className="p-4 space-y-1">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            const Icon = item.icon;
+      {/* Navigation */}
+      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+        {navItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          const Icon = item.icon;
 
-            return (
-              <button
-                key={item.path}
-                onClick={() => handleNavigation(item.path)}
+          const button = (
+            <button
+              key={item.path}
+              onClick={() => navigate(item.path)}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all btn-press",
+                "hover:bg-card",
+                isActive && "bg-card border border-primary/30 glow-anabolic"
+              )}
+            >
+              <Icon
                 className={cn(
-                  "w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-all btn-press",
-                  "hover:bg-card",
-                  isActive && "bg-card border border-primary/30 glow-anabolic"
+                  "h-5 w-5 flex-shrink-0",
+                  isActive ? "text-primary" : "text-muted-foreground"
                 )}
-              >
-                <Icon
-                  className={cn(
-                    "h-5 w-5",
-                    isActive ? "text-primary" : "text-muted-foreground"
-                  )}
-                />
-                <div className="text-left">
+              />
+              {!collapsed && (
+                <div className="text-left min-w-0">
                   <p
                     className={cn(
-                      "font-mono text-sm tracking-wide",
+                      "font-mono text-xs tracking-wide truncate",
                       isActive ? "text-primary" : "text-foreground"
                     )}
                   >
                     {item.label}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {item.description}
-                  </p>
                 </div>
-              </button>
-            );
-          })}
-        </nav>
+              )}
+            </button>
+          );
 
-        {/* Version Footer */}
-        <div className="absolute bottom-6 left-6 right-6">
-          <div className="text-xs font-mono text-muted-foreground/50">
-            v1.0.0 // PROTOCOL ACTIVE
-          </div>
+          if (collapsed) {
+            return (
+              <Tooltip key={item.path} delayDuration={0}>
+                <TooltipTrigger asChild>{button}</TooltipTrigger>
+                <TooltipContent side="right" className="font-mono text-xs">
+                  {item.label}
+                </TooltipContent>
+              </Tooltip>
+            );
+          }
+
+          return button;
+        })}
+      </nav>
+
+      {/* Footer */}
+      {!collapsed && (
+        <div className="p-4 border-t border-border">
+          <p className="text-xs font-mono text-muted-foreground/50">
+            v1.0.0 // ACTIVE
+          </p>
         </div>
-      </SheetContent>
-    </Sheet>
+      )}
+    </aside>
   );
 }

@@ -6,11 +6,8 @@ export function TReadyScore() {
   const { current, trend, status } = mockVoltage;
 
   return (
-    <div
-      className="card-surface p-6 animate-fade-in"
-      style={{ animationDelay: "0.2s" }}
-    >
-      <h2 className="font-mono text-xs text-muted-foreground tracking-wider mb-4">
+    <div className="card-surface p-4 h-full flex flex-col">
+      <h2 className="font-mono text-xs text-muted-foreground tracking-wider mb-2">
         SYSTEM VOLTAGE
       </h2>
 

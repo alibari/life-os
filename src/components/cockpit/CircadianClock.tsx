@@ -37,8 +37,8 @@ export function CircadianClock() {
   const hours = [0, 6, 12, 18, 24];
 
   return (
-    <div className="card-surface p-6 animate-fade-in" style={{ animationDelay: "0.1s" }}>
-      <h2 className="font-mono text-xs text-muted-foreground tracking-wider mb-4">
+    <div className="card-surface p-4 h-full flex flex-col overflow-hidden">
+      <h2 className="font-mono text-xs text-muted-foreground tracking-wider mb-2">
         CIRCADIAN RHYTHM
       </h2>
 

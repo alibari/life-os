@@ -18,12 +18,12 @@ export function ReadinessArc() {
   };
 
   return (
-    <div className="card-surface p-6 animate-fade-in">
-      <h2 className="font-mono text-xs text-muted-foreground tracking-wider mb-4">
+    <div className="card-surface p-4 h-full flex flex-col">
+      <h2 className="font-mono text-xs text-muted-foreground tracking-wider mb-2">
         READINESS INDEX
       </h2>
 
-      <div className="relative h-48">
+      <div className="relative flex-1 min-h-[120px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
