@@ -19,20 +19,20 @@ export function ReadinessArc() {
 
   return (
     <div className="card-surface p-4 h-full flex flex-col">
-      <h2 className="font-mono text-xs text-muted-foreground tracking-wider mb-2">
-        READINESS INDEX
+      <h2 className="font-mono text-xs text-muted-foreground tracking-wider mb-3 shrink-0 uppercase">
+        Readiness Index
       </h2>
 
-      <div className="relative flex-1 min-h-[120px]">
+      <div className="relative flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}
               cx="50%"
-              cy="100%"
+              cy="85%"
               startAngle={180}
               endAngle={0}
-              innerRadius="70%"
+              innerRadius="65%"
               outerRadius="100%"
               paddingAngle={0}
               dataKey="value"
@@ -45,10 +45,11 @@ export function ReadinessArc() {
         </ResponsiveContainer>
 
         {/* Center Score */}
-        <div className="absolute inset-0 flex flex-col items-center justify-end pb-2">
+        <div className="absolute inset-0 flex flex-col items-center justify-end pb-[15%]">
           <span
             className={cn(
-              "font-mono text-5xl font-bold",
+              "font-mono font-bold",
+              "text-4xl sm:text-5xl lg:text-6xl",
               status.state === "anabolic" && "text-primary",
               status.state === "catabolic" && "text-destructive",
               status.state === "neutral" && "text-secondary"
@@ -62,7 +63,7 @@ export function ReadinessArc() {
       {/* Status Message */}
       <div
         className={cn(
-          "text-center font-mono text-sm tracking-wider mt-2",
+          "text-center font-mono text-sm tracking-wider mt-2 shrink-0",
           status.state === "anabolic" && "text-primary",
           status.state === "catabolic" && "text-destructive",
           status.state === "neutral" && "text-secondary"
@@ -72,21 +73,21 @@ export function ReadinessArc() {
       </div>
 
       {/* Metric Breakdown */}
-      <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-border">
+      <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-border shrink-0">
         <div className="text-center">
-          <p className="font-mono text-2xl font-semibold text-foreground">
+          <p className="font-mono text-xl lg:text-2xl font-semibold text-foreground">
             {sleepQuality}
           </p>
           <p className="text-xs text-muted-foreground mt-1">SLEEP</p>
         </div>
         <div className="text-center">
-          <p className="font-mono text-2xl font-semibold text-foreground">
+          <p className="font-mono text-xl lg:text-2xl font-semibold text-foreground">
             {hrv}
           </p>
           <p className="text-xs text-muted-foreground mt-1">HRV</p>
         </div>
         <div className="text-center">
-          <p className="font-mono text-2xl font-semibold text-foreground">
+          <p className="font-mono text-xl lg:text-2xl font-semibold text-foreground">
             {morningMood}
           </p>
           <p className="text-xs text-muted-foreground mt-1">MOOD</p>
