@@ -146,15 +146,16 @@ export default function Dashboard() {
     const newWidget: WidgetConfig = { id: newId, type, title };
     
     const maxY = layouts.reduce((max, l) => Math.max(max, l.y + l.h), 0);
-    const isLargeWidget = type === "graph" || type === "yeartracker";
+    const isLargeWidget = type === "graph";
+    const isYearTracker = type === "yeartracker";
     const newLayout: LayoutItem = { 
       i: newId, 
       x: 0, 
       y: maxY, 
-      w: isLargeWidget ? 3 : 2, 
-      h: isLargeWidget ? 3 : 2, 
-      minW: 1, 
-      maxW: 4, 
+      w: isYearTracker ? 6 : (isLargeWidget ? 4 : 2), 
+      h: isYearTracker ? 2 : (isLargeWidget ? 3 : 2), 
+      minW: isYearTracker ? 4 : 1, 
+      maxW: 6, 
       minH: 2, 
       maxH: 6 
     };
