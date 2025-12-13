@@ -7,7 +7,7 @@ export const BrainScore = () => {
 
   return (
     <div className="card-surface p-4 h-full flex flex-col">
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-3 shrink-0">
         <Brain className="h-4 w-4 text-secondary" />
         <span className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
           Brain Score
@@ -15,8 +15,8 @@ export const BrainScore = () => {
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center min-h-0">
-        <div className="relative">
-          <svg className="w-28 h-28 -rotate-90" viewBox="0 0 100 100">
+        <div className="relative w-full max-w-[140px] aspect-square">
+          <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
             <circle
               cx="50"
               cy="50"
@@ -38,7 +38,7 @@ export const BrainScore = () => {
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="font-mono text-3xl font-bold text-foreground">{score}</span>
+            <span className="font-mono text-3xl lg:text-4xl font-bold text-foreground">{score}</span>
           </div>
         </div>
 
@@ -55,18 +55,18 @@ export const BrainScore = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 mt-auto pt-3 border-t border-border">
+      <div className="grid grid-cols-3 gap-2 mt-auto pt-3 border-t border-border shrink-0">
         <div className="text-center">
-          <div className="font-mono text-lg font-bold text-foreground">92</div>
-          <div className="text-xs text-muted-foreground">Focus</div>
+          <div className="font-mono text-base lg:text-lg font-bold text-foreground">92</div>
+          <div className="text-[10px] lg:text-xs text-muted-foreground">Focus</div>
         </div>
         <div className="text-center">
-          <div className="font-mono text-lg font-bold text-foreground">71</div>
-          <div className="text-xs text-muted-foreground">Memory</div>
+          <div className="font-mono text-base lg:text-lg font-bold text-foreground">71</div>
+          <div className="text-[10px] lg:text-xs text-muted-foreground">Memory</div>
         </div>
         <div className="text-center">
-          <div className="font-mono text-lg font-bold text-foreground">68</div>
-          <div className="text-xs text-muted-foreground">Clarity</div>
+          <div className="font-mono text-base lg:text-lg font-bold text-foreground">68</div>
+          <div className="text-[10px] lg:text-xs text-muted-foreground">Clarity</div>
         </div>
       </div>
     </div>

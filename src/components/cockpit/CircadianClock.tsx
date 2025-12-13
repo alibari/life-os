@@ -38,14 +38,14 @@ export function CircadianClock() {
 
   return (
     <div className="card-surface p-4 h-full flex flex-col overflow-hidden">
-      <h2 className="font-mono text-xs text-muted-foreground tracking-wider mb-2">
-        CIRCADIAN RHYTHM
+      <h2 className="font-mono text-xs text-muted-foreground tracking-wider mb-3 shrink-0 uppercase">
+        Circadian Rhythm
       </h2>
 
       {/* Timeline */}
-      <div className="relative">
+      <div className="relative shrink-0">
         {/* Background segments */}
-        <div className="h-12 rounded-lg overflow-hidden flex">
+        <div className="h-10 lg:h-14 rounded-lg overflow-hidden flex">
           {timelineSegments.map((segment, i) => (
             <div
               key={i}
@@ -66,7 +66,7 @@ export function CircadianClock() {
         {/* Hour markers */}
         <div className="flex justify-between mt-2">
           {hours.map((hour) => (
-            <span key={hour} className="font-mono text-xs text-muted-foreground">
+            <span key={hour} className="font-mono text-[10px] lg:text-xs text-muted-foreground">
               {hour.toString().padStart(2, "0")}:00
             </span>
           ))}
@@ -74,25 +74,25 @@ export function CircadianClock() {
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-border">
+      <div className="flex flex-wrap gap-3 lg:gap-4 mt-4 pt-3 border-t border-border shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-sm bg-amber-500/30" />
-          <span className="text-xs text-muted-foreground">Cortisol</span>
+          <div className="w-2.5 h-2.5 lg:w-3 lg:h-3 rounded-sm bg-amber-500/30" />
+          <span className="text-[10px] lg:text-xs text-muted-foreground">Cortisol</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-sm bg-secondary/30" />
-          <span className="text-xs text-muted-foreground">Peak Focus</span>
+          <div className="w-2.5 h-2.5 lg:w-3 lg:h-3 rounded-sm bg-secondary/30" />
+          <span className="text-[10px] lg:text-xs text-muted-foreground">Peak Focus</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-sm bg-purple-500/30" />
-          <span className="text-xs text-muted-foreground">Wind Down</span>
+          <div className="w-2.5 h-2.5 lg:w-3 lg:h-3 rounded-sm bg-purple-500/30" />
+          <span className="text-[10px] lg:text-xs text-muted-foreground">Wind Down</span>
         </div>
       </div>
 
-      {/* Current Phase */}
-      <div className="mt-4 p-3 rounded-lg bg-card border border-border">
-        <p className="font-mono text-xs text-muted-foreground">CURRENT PHASE</p>
-        <p className="font-mono text-lg text-secondary mt-1">
+      {/* Current Phase - Flex to fill remaining space */}
+      <div className="flex-1 mt-4 p-3 rounded-lg bg-card border border-border flex flex-col justify-center min-h-0">
+        <p className="font-mono text-[10px] lg:text-xs text-muted-foreground">CURRENT PHASE</p>
+        <p className="font-mono text-base lg:text-lg text-secondary mt-1">
           {currentHour >= 10 && currentHour < 14
             ? "PEAK FOCUS // EXECUTE"
             : currentHour >= 6 && currentHour < 7

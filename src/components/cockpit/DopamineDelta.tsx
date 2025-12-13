@@ -3,14 +3,13 @@ import { cn } from "@/lib/utils";
 
 // Mock data - will be connected to other pages/widgets later
 const mockData = {
-  earnedDopamine: 55, // From workouts, cold plunges, deep work
-  cheapDopamine: 20,  // From social media, sugar, etc.
+  earnedDopamine: 55,
+  cheapDopamine: 20,
 };
 
 export const DopamineDelta = () => {
   const totalDelta = mockData.earnedDopamine - mockData.cheapDopamine;
   
-  // Normalize to -100 to +100 range, then to 0-100 for display
   const normalizedDelta = Math.max(-100, Math.min(100, totalDelta));
   const barPosition = ((normalizedDelta + 100) / 200) * 100;
 
@@ -42,7 +41,7 @@ export const DopamineDelta = () => {
         {/* Balance Bar */}
         <div className="relative mb-3">
           <div className={cn(
-            "h-12 rounded-2xl bg-zinc-900/80 border border-border overflow-hidden relative transition-shadow duration-500",
+            "h-10 lg:h-14 rounded-2xl bg-zinc-900/80 border border-border overflow-hidden relative transition-shadow duration-500",
             status.glow
           )}>
             {/* Gradient background */}
@@ -56,7 +55,7 @@ export const DopamineDelta = () => {
             
             {/* Delta indicator orb */}
             <div 
-              className="absolute top-1/2 -translate-y-1/2 w-8 h-8 rounded-full transition-all duration-700 ease-out flex items-center justify-center"
+              className="absolute top-1/2 -translate-y-1/2 w-7 h-7 lg:w-9 lg:h-9 rounded-full transition-all duration-700 ease-out flex items-center justify-center"
               style={{ 
                 left: `calc(${barPosition}% - 16px)`,
                 background: normalizedDelta >= 0 
@@ -67,7 +66,7 @@ export const DopamineDelta = () => {
                   : '0 0 20px #ef4444, inset 0 1px 0 rgba(255,255,255,0.2)'
               }}
             >
-              <span className="font-mono text-[10px] font-bold text-white drop-shadow-lg">
+              <span className="font-mono text-[9px] lg:text-[10px] font-bold text-white drop-shadow-lg">
                 {normalizedDelta >= 0 ? '+' : ''}{normalizedDelta}
               </span>
             </div>
@@ -75,26 +74,26 @@ export const DopamineDelta = () => {
           
           {/* Scale labels */}
           <div className="flex justify-between mt-2 px-1">
-            <span className="font-mono text-[9px] text-red-400/60 uppercase tracking-wider">Deficit</span>
-            <span className="font-mono text-[9px] text-muted-foreground">0</span>
-            <span className="font-mono text-[9px] text-emerald-400/60 uppercase tracking-wider">Surplus</span>
+            <span className="font-mono text-[9px] lg:text-[10px] text-red-400/60 uppercase tracking-wider">Deficit</span>
+            <span className="font-mono text-[9px] lg:text-[10px] text-muted-foreground">0</span>
+            <span className="font-mono text-[9px] lg:text-[10px] text-emerald-400/60 uppercase tracking-wider">Surplus</span>
           </div>
         </div>
 
         {/* Stats Row */}
         <div className="grid grid-cols-2 gap-2 shrink-0">
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+          <div className="flex items-center gap-2 p-2 lg:p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="font-mono text-[9px] text-muted-foreground">EARNED</p>
-              <p className="font-mono text-sm font-bold text-emerald-400">+{mockData.earnedDopamine}</p>
+              <p className="font-mono text-[9px] lg:text-[10px] text-muted-foreground">EARNED</p>
+              <p className="font-mono text-sm lg:text-base font-bold text-emerald-400">+{mockData.earnedDopamine}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-red-500/5 border border-red-500/10">
-            <div className="w-2 h-2 rounded-full bg-red-500" />
+          <div className="flex items-center gap-2 p-2 lg:p-3 rounded-lg bg-red-500/5 border border-red-500/10">
+            <div className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="font-mono text-[9px] text-muted-foreground">CHEAP</p>
-              <p className="font-mono text-sm font-bold text-red-400">-{mockData.cheapDopamine}</p>
+              <p className="font-mono text-[9px] lg:text-[10px] text-muted-foreground">CHEAP</p>
+              <p className="font-mono text-sm lg:text-base font-bold text-red-400">-{mockData.cheapDopamine}</p>
             </div>
           </div>
         </div>

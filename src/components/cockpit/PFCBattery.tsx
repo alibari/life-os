@@ -5,11 +5,10 @@ import { cn } from "@/lib/utils";
 export const PFCBattery = () => {
   const [wakeTime] = useState(() => {
     const now = new Date();
-    now.setHours(7, 0, 0, 0); // Assume 7 AM wake
+    now.setHours(7, 0, 0, 0);
     return now;
   });
 
-  // Mock data - will be connected to other pages later
   const deepWorkSessions = 2;
   const nsdrSessions = 1;
 
@@ -41,7 +40,7 @@ export const PFCBattery = () => {
   };
 
   const zone = getZone();
-  const batterySegments = 8;
+  const batterySegments = 6;
   const filledSegments = Math.ceil((battery / 100) * batterySegments);
 
   return (
@@ -59,12 +58,12 @@ export const PFCBattery = () => {
         </span>
       </div>
 
-      {/* Main Visual - Centered Battery */}
-      <div className="flex-1 flex items-center justify-center min-h-0 py-2">
+      {/* Main Visual - Horizontal Battery for better width usage */}
+      <div className="flex-1 flex flex-col justify-center min-h-0 py-2">
         <div className="relative">
-          {/* Battery body */}
+          {/* Battery body - horizontal */}
           <div 
-            className="w-20 h-36 rounded-xl border-2 border-zinc-700 bg-zinc-900/80 p-1.5 flex flex-col-reverse gap-1 transition-shadow duration-500"
+            className="h-14 lg:h-20 rounded-xl border-2 border-zinc-700 bg-zinc-900/80 p-1.5 flex gap-1 transition-shadow duration-500"
             style={{ boxShadow: `0 0 30px ${zone.glow}30` }}
           >
             {Array.from({ length: batterySegments }).map((_, i) => (
@@ -88,12 +87,12 @@ export const PFCBattery = () => {
           </div>
           
           {/* Battery cap */}
-          <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-8 h-2 rounded-t-md bg-zinc-700 border-2 border-b-0 border-zinc-600" />
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[6px] w-2 h-6 lg:h-8 rounded-r-md bg-zinc-700 border-2 border-l-0 border-zinc-600" />
           
           {/* Percentage overlay */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1">
-              <span className="font-mono text-xl font-bold text-foreground">
+            <div className="bg-black/60 backdrop-blur-sm rounded-lg px-3 py-1">
+              <span className="font-mono text-xl lg:text-2xl font-bold text-foreground">
                 {Math.round(battery)}%
               </span>
             </div>
@@ -102,14 +101,14 @@ export const PFCBattery = () => {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 gap-2 shrink-0">
-        <div className="text-center p-2 rounded-lg bg-yellow-500/5 border border-yellow-500/10">
-          <p className="font-mono text-[9px] text-muted-foreground">DEEP WORK</p>
-          <p className="font-mono text-sm font-bold text-yellow-400">{deepWorkSessions}x</p>
+      <div className="grid grid-cols-2 gap-2 shrink-0 mt-2">
+        <div className="text-center p-2 lg:p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/10">
+          <p className="font-mono text-[9px] lg:text-[10px] text-muted-foreground">DEEP WORK</p>
+          <p className="font-mono text-sm lg:text-base font-bold text-yellow-400">{deepWorkSessions}x</p>
         </div>
-        <div className="text-center p-2 rounded-lg bg-blue-500/5 border border-blue-500/10">
-          <p className="font-mono text-[9px] text-muted-foreground">NSDR</p>
-          <p className="font-mono text-sm font-bold text-blue-400">{nsdrSessions}x</p>
+        <div className="text-center p-2 lg:p-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
+          <p className="font-mono text-[9px] lg:text-[10px] text-muted-foreground">NSDR</p>
+          <p className="font-mono text-sm lg:text-base font-bold text-blue-400">{nsdrSessions}x</p>
         </div>
       </div>
     </div>

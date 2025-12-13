@@ -75,7 +75,7 @@ export const YearTracker = () => {
   return (
     <div className="card-surface p-4 h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 shrink-0">
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-primary" />
           <span className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
@@ -89,61 +89,64 @@ export const YearTracker = () => {
       </div>
 
       {/* Stats Row */}
-      <div className="flex gap-6 mb-4">
+      <div className="flex gap-6 mb-3 shrink-0">
         <div>
-          <div className="font-mono text-2xl font-bold text-foreground">{totalDays}</div>
-          <div className="text-xs text-muted-foreground">Days tracked</div>
+          <div className="font-mono text-xl lg:text-2xl font-bold text-foreground">{totalDays}</div>
+          <div className="text-[10px] lg:text-xs text-muted-foreground">Days tracked</div>
         </div>
         <div>
-          <div className="font-mono text-2xl font-bold text-primary">{avgScore}</div>
-          <div className="text-xs text-muted-foreground">Avg score</div>
+          <div className="font-mono text-xl lg:text-2xl font-bold text-primary">{avgScore}</div>
+          <div className="text-[10px] lg:text-xs text-muted-foreground">Avg score</div>
         </div>
-      </div>
-
-      {/* Month Labels */}
-      <div className="flex mb-1 pl-6">
-        {months.map((month, i) => (
-          <span 
-            key={i} 
-            className="flex-1 text-[10px] text-muted-foreground/70 font-mono"
-          >
-            {month}
-          </span>
-        ))}
       </div>
 
       {/* Grid Container */}
-      <div className="flex-1 min-h-0 flex gap-1">
-        {/* Day Labels */}
-        <div className="flex flex-col justify-around text-[9px] text-muted-foreground/60 font-mono pr-1">
-          <span>Mon</span>
-          <span>Wed</span>
-          <span>Fri</span>
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        {/* Month Labels */}
+        <div className="flex mb-1 pl-5 shrink-0">
+          {months.map((month, i) => (
+            <span 
+              key={i} 
+              className="flex-1 text-[8px] lg:text-[9px] text-muted-foreground/70 font-mono"
+            >
+              {month}
+            </span>
+          ))}
         </div>
 
-        {/* Contribution Grid */}
-        <div className="flex-1 overflow-x-auto">
-          <div className="flex gap-[3px] h-full min-w-max">
-            {weeks.map((week, weekIdx) => (
-              <div key={weekIdx} className="flex flex-col gap-[3px]">
-                {week.map((day, dayIdx) => (
-                  <div
-                    key={dayIdx}
-                    className={`w-[10px] h-[10px] rounded-sm ${getScoreColor(day.score)} transition-all duration-150 hover:scale-125 hover:z-10 cursor-pointer hover:ring-1 hover:ring-foreground/30`}
-                    onMouseEnter={() => day.score !== null && setHoveredDay(day)}
-                    onMouseLeave={() => setHoveredDay(null)}
-                  />
-                ))}
-              </div>
-            ))}
+        {/* Day Labels + Grid */}
+        <div className="flex-1 flex gap-1 min-h-0 overflow-hidden">
+          {/* Day Labels */}
+          <div className="flex flex-col justify-around text-[7px] lg:text-[8px] text-muted-foreground/60 font-mono pr-0.5 shrink-0">
+            <span>Mon</span>
+            <span>Wed</span>
+            <span>Fri</span>
+          </div>
+
+          {/* Contribution Grid */}
+          <div className="flex-1 overflow-x-auto overflow-y-hidden">
+            <div className="flex gap-[2px] h-full min-w-max">
+              {weeks.map((week, weekIdx) => (
+                <div key={weekIdx} className="flex flex-col gap-[2px]">
+                  {week.map((day, dayIdx) => (
+                    <div
+                      key={dayIdx}
+                      className={`w-[8px] h-[8px] lg:w-[10px] lg:h-[10px] rounded-[2px] ${getScoreColor(day.score)} transition-all duration-150 hover:scale-125 hover:z-10 cursor-pointer hover:ring-1 hover:ring-foreground/30`}
+                      onMouseEnter={() => day.score !== null && setHoveredDay(day)}
+                      onMouseLeave={() => setHoveredDay(null)}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Hover Info */}
       {hoveredDay && (
-        <div className="mt-2 pt-2 border-t border-border text-center">
-          <span className="font-mono text-sm text-foreground">
+        <div className="mt-2 pt-2 border-t border-border text-center shrink-0">
+          <span className="font-mono text-xs lg:text-sm text-foreground">
             {hoveredDay.date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
             <span className="text-primary font-bold ml-2">{hoveredDay.score}</span>
           </span>
@@ -151,16 +154,16 @@ export const YearTracker = () => {
       )}
 
       {/* Legend */}
-      <div className="flex items-center justify-center gap-2 mt-3 pt-3 border-t border-border">
-        <span className="text-xs text-muted-foreground">Less</span>
-        <div className="flex gap-1">
-          <div className="w-[10px] h-[10px] rounded-sm bg-destructive/70" />
-          <div className="w-[10px] h-[10px] rounded-sm bg-orange-500/70" />
-          <div className="w-[10px] h-[10px] rounded-sm bg-yellow-500/70" />
-          <div className="w-[10px] h-[10px] rounded-sm bg-primary/50" />
-          <div className="w-[10px] h-[10px] rounded-sm bg-primary" />
+      <div className="flex items-center justify-center gap-2 mt-2 pt-2 border-t border-border shrink-0">
+        <span className="text-[9px] lg:text-[10px] text-muted-foreground">Less</span>
+        <div className="flex gap-[3px]">
+          <div className="w-[8px] h-[8px] lg:w-[10px] lg:h-[10px] rounded-[2px] bg-destructive/70" />
+          <div className="w-[8px] h-[8px] lg:w-[10px] lg:h-[10px] rounded-[2px] bg-orange-500/70" />
+          <div className="w-[8px] h-[8px] lg:w-[10px] lg:h-[10px] rounded-[2px] bg-yellow-500/70" />
+          <div className="w-[8px] h-[8px] lg:w-[10px] lg:h-[10px] rounded-[2px] bg-primary/50" />
+          <div className="w-[8px] h-[8px] lg:w-[10px] lg:h-[10px] rounded-[2px] bg-primary" />
         </div>
-        <span className="text-xs text-muted-foreground">More</span>
+        <span className="text-[9px] lg:text-[10px] text-muted-foreground">More</span>
       </div>
     </div>
   );
