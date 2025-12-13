@@ -146,7 +146,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen p-6" ref={containerRef}>
+    <div className="min-h-screen p-6 cockpit-canvas" ref={containerRef}>
       {/* Header */}
       <header className="mb-6 flex items-center justify-between">
         <div>
@@ -160,17 +160,17 @@ export default function Dashboard() {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="btn-press gap-2">
-              <Plus className="h-4 w-4" />
-              Add Widget
+            <Button variant="outline" size="sm" className="btn-press gap-2 border-primary/30 hover:border-primary/60">
+              <Plus className="h-4 w-4 text-primary" />
+              <span>Add Widget</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="border-border bg-card/95 backdrop-blur-xl">
             {availableWidgets.map((widget) => (
               <DropdownMenuItem
                 key={widget.type}
                 onClick={() => addWidget(widget.type, widget.title)}
-                className="font-mono text-xs"
+                className="font-mono text-xs cursor-pointer"
               >
                 {widget.title}
               </DropdownMenuItem>

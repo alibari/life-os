@@ -1,12 +1,6 @@
 import { useState, useEffect } from "react";
-import { Moon, Coffee, AlertTriangle } from "lucide-react";
+import { Moon, AlertTriangle, Coffee } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-
-interface CaffeineLog {
-  time: Date;
-  expiresAt: Date;
-}
 
 export const AdenosinePressure = () => {
   const [wakeTime] = useState(() => {
@@ -15,8 +9,13 @@ export const AdenosinePressure = () => {
     return now;
   });
   
-  const [caffeineLog, setCaffeineLog] = useState<CaffeineLog[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Mock caffeine data - will be connected to other pages later
+  const caffeineIntakes = [
+    { time: new Date(new Date().setHours(8, 30, 0, 0)) },
+    { time: new Date(new Date().setHours(14, 0, 0, 0)) },
+  ];
 
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -24,139 +23,126 @@ export const AdenosinePressure = () => {
   }, []);
 
   const hoursAwake = Math.max(0, (currentTime.getTime() - wakeTime.getTime()) / (1000 * 60 * 60));
-  const maxPressure = 16; // Hours to peak pressure
+  const maxPressure = 16;
   const pressure = Math.min(100, (hoursAwake / maxPressure) * 100);
 
-  // Check if caffeine is active
-  const activeCaffeine = caffeineLog.filter(c => c.expiresAt > currentTime);
+  // Calculate active caffeine (6-hour half-life)
+  const activeCaffeine = caffeineIntakes.filter(c => {
+    const expiresAt = new Date(c.time.getTime() + 6 * 60 * 60 * 1000);
+    return expiresAt > currentTime && c.time < currentTime;
+  });
   const caffeineActive = activeCaffeine.length > 0;
   
   // Find crash time
   const crashTime = activeCaffeine.length > 0 
-    ? new Date(Math.max(...activeCaffeine.map(c => c.expiresAt.getTime())))
+    ? new Date(Math.max(...activeCaffeine.map(c => c.time.getTime() + 6 * 60 * 60 * 1000)))
     : null;
-
-  const logCaffeine = () => {
-    const now = new Date();
-    const expires = new Date(now.getTime() + 6 * 60 * 60 * 1000); // 6 hour half-life
-    setCaffeineLog(prev => [...prev, { time: now, expiresAt: expires }]);
-  };
-
-  // Generate wave points
-  const generateWave = () => {
-    const points: string[] = [];
-    const width = 200;
-    const height = 60;
-    
-    for (let x = 0; x <= width; x += 4) {
-      const progress = x / width;
-      const y = height - (progress * pressure * 0.6);
-      points.push(`${x},${y}`);
-    }
-    
-    return `M0,${height} L${points.join(' L')} L${width},${height} Z`;
-  };
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   };
 
+  const getPressureColor = () => {
+    if (pressure > 70) return { color: "text-red-400", bg: "from-red-500/30", glow: "#ef4444" };
+    if (pressure > 40) return { color: "text-yellow-400", bg: "from-yellow-500/30", glow: "#eab308" };
+    return { color: "text-emerald-400", bg: "from-emerald-500/30", glow: "#10b981" };
+  };
+
+  const pressureStyle = getPressureColor();
+
   return (
-    <div className="h-full card-surface p-4 flex flex-col">
-      <div className="flex items-center justify-between mb-3">
+    <div className="h-full card-surface p-4 flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3 shrink-0">
         <div className="flex items-center gap-2">
-          <Moon className="h-5 w-5 text-purple-400" />
-          <h3 className="font-mono text-sm font-bold text-foreground">ADENOSINE PRESSURE</h3>
+          <div className="p-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20">
+            <Moon className="h-4 w-4 text-purple-400" />
+          </div>
+          <h3 className="font-mono text-xs font-bold text-foreground uppercase tracking-wider">Adenosine</h3>
         </div>
-        <span className="font-mono text-xs text-muted-foreground">
+        <span className="font-mono text-[10px] text-muted-foreground bg-card px-2 py-0.5 rounded-full border border-border">
           {hoursAwake.toFixed(1)}h awake
         </span>
       </div>
 
       {/* Wave Visualization */}
-      <div className="flex-1 relative bg-zinc-900/50 rounded-lg border border-border overflow-hidden">
-        <svg className="w-full h-full" viewBox="0 0 200 80" preserveAspectRatio="none">
-          {/* Pressure wave */}
-          <path
-            d={generateWave()}
-            fill="url(#pressureGradient)"
-            className="transition-all duration-1000"
-          />
+      <div 
+        className="flex-1 relative bg-zinc-900/60 rounded-xl border border-border overflow-hidden min-h-0"
+        style={{ boxShadow: `inset 0 -20px 40px ${pressureStyle.glow}10` }}
+      >
+        {/* Animated wave layers */}
+        <div className="absolute inset-0">
+          {/* Primary wave */}
+          <svg className="absolute bottom-0 w-full" style={{ height: `${pressure}%` }} viewBox="0 0 200 50" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="waveGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#6b7280" stopOpacity="0.6" />
+                <stop offset="100%" stopColor="#6b7280" stopOpacity="0.1" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M0,25 Q25,10 50,25 T100,25 T150,25 T200,25 L200,50 L0,50 Z"
+              fill="url(#waveGradient)"
+              className="animate-pulse"
+            />
+          </svg>
           
           {/* Caffeine mask line */}
           {caffeineActive && (
-            <line
-              x1="0"
-              y1="30"
-              x2="200"
-              y2="30"
-              stroke="#3b82f6"
-              strokeWidth="2"
-              strokeDasharray="4,4"
-              className="animate-pulse"
-            />
+            <div 
+              className="absolute left-0 right-0 border-t-2 border-dashed border-blue-500 animate-pulse"
+              style={{ top: '35%' }}
+            >
+              <div className="absolute -top-3 right-2 flex items-center gap-1 bg-blue-500/20 rounded px-1.5 py-0.5">
+                <Coffee className="h-3 w-3 text-blue-400" />
+                <span className="font-mono text-[8px] text-blue-400">MASKED</span>
+              </div>
+            </div>
           )}
-          
-          <defs>
-            <linearGradient id="pressureGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#6b7280" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="#6b7280" stopOpacity="0.2" />
-            </linearGradient>
-          </defs>
-        </svg>
-
-        {/* Labels */}
-        <div className="absolute top-2 left-2 flex items-center gap-1">
-          <div className="w-3 h-0.5 bg-zinc-500" />
-          <span className="font-mono text-[10px] text-zinc-500">Sleep Pressure</span>
         </div>
-        
-        {caffeineActive && (
-          <div className="absolute top-2 right-2 flex items-center gap-1">
-            <div className="w-3 h-0.5 bg-blue-500" />
-            <span className="font-mono text-[10px] text-blue-400">Caffeine Mask</span>
-          </div>
-        )}
 
-        {/* Pressure percentage */}
-        <div className="absolute bottom-2 left-2">
-          <span className={cn(
-            "font-mono text-lg font-bold",
-            pressure > 70 ? "text-red-400" : pressure > 40 ? "text-yellow-400" : "text-emerald-400"
-          )}>
+        {/* Pressure indicator */}
+        <div className="absolute bottom-3 left-3 flex items-end gap-2">
+          <span className={cn("font-mono text-2xl font-bold", pressureStyle.color)}>
             {Math.round(pressure)}%
           </span>
+          <span className="font-mono text-[9px] text-muted-foreground mb-1">PRESSURE</span>
+        </div>
+
+        {/* Legend */}
+        <div className="absolute top-2 right-2 flex flex-col gap-1">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-zinc-500" />
+            <span className="font-mono text-[8px] text-zinc-500">Sleep Debt</span>
+          </div>
+          {caffeineActive && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-blue-500" />
+              <span className="font-mono text-[8px] text-blue-400">Caffeine</span>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Crash Prediction */}
-      {crashTime && (
-        <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
-          <AlertTriangle className="h-4 w-4 text-yellow-400" />
+      {crashTime && crashTime > currentTime && (
+        <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20 shrink-0">
+          <AlertTriangle className="h-3.5 w-3.5 text-yellow-400 shrink-0" />
           <span className="font-mono text-[10px] text-yellow-400">
-            CRASH PREDICTED: {formatTime(crashTime)}
+            CRASH: {formatTime(crashTime)}
           </span>
         </div>
       )}
 
-      {/* Caffeine Button */}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={logCaffeine}
-        className={cn(
-          "mt-2 btn-press font-mono text-xs gap-2",
-          caffeineActive && "border-blue-500/50 text-blue-400"
-        )}
-      >
-        <Coffee className="h-4 w-4" />
-        LOG CAFFEINE
-        {activeCaffeine.length > 0 && (
-          <span className="ml-1 px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400">
-            {activeCaffeine.length}
+      {/* Caffeine count */}
+      {!crashTime && (
+        <div className="flex items-center justify-center gap-2 mt-2 p-2 rounded-lg bg-zinc-800/50 border border-border shrink-0">
+          <Coffee className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="font-mono text-[10px] text-muted-foreground">
+            {caffeineIntakes.length} caffeine today
           </span>
-        )}
-      </Button>
+        </div>
+      )}
     </div>
   );
 };

@@ -15,35 +15,38 @@ export const StateSwitch = () => {
     {
       id: "focus" as const,
       label: "FOCUS",
-      icon: <Zap className="h-6 w-6" />,
-      color: "from-yellow-500 to-orange-500",
-      borderColor: "border-yellow-500/50",
-      bgColor: "bg-yellow-500/20",
-      textColor: "text-yellow-400",
+      icon: <Zap className="h-5 w-5" />,
+      gradient: "from-amber-500 to-orange-600",
+      borderColor: "border-amber-500/30",
+      bgColor: "bg-amber-500/10",
+      textColor: "text-amber-400",
+      glow: "#f59e0b",
       duration: 30,
-      description: "Rapid breathing for adrenaline"
+      desc: "Rapid breathing"
     },
     {
       id: "calm" as const,
       label: "CALM",
-      icon: <Heart className="h-6 w-6" />,
-      color: "from-blue-500 to-cyan-500",
-      borderColor: "border-blue-500/50",
-      bgColor: "bg-blue-500/20",
+      icon: <Heart className="h-5 w-5" />,
+      gradient: "from-blue-500 to-cyan-500",
+      borderColor: "border-blue-500/30",
+      bgColor: "bg-blue-500/10",
       textColor: "text-blue-400",
+      glow: "#3b82f6",
       duration: 60,
-      description: "Physiological sigh protocol"
+      desc: "Physiological sigh"
     },
     {
       id: "reset" as const,
       label: "NSDR",
-      icon: <Brain className="h-6 w-6" />,
-      color: "from-purple-500 to-pink-500",
-      borderColor: "border-purple-500/50",
-      bgColor: "bg-purple-500/20",
+      icon: <Brain className="h-5 w-5" />,
+      gradient: "from-purple-500 to-pink-500",
+      borderColor: "border-purple-500/30",
+      bgColor: "bg-purple-500/10",
       textColor: "text-purple-400",
+      glow: "#a855f7",
       duration: 600,
-      description: "10-min deep rest session"
+      desc: "Deep rest 10m"
     }
   ];
 
@@ -67,11 +70,10 @@ export const StateSwitch = () => {
     };
   }, [isRunning]);
 
-  // Breath phase cycling for calm state
   useEffect(() => {
     if (activeState === "calm" && isRunning) {
       const phases: ("inhale1" | "inhale2" | "exhale")[] = ["inhale1", "inhale2", "exhale"];
-      const durations = [2000, 1000, 6000]; // Double inhale, long exhale
+      const durations = [2000, 1000, 6000];
       let phaseIndex = 0;
 
       const cycleBreath = () => {
@@ -80,10 +82,7 @@ export const StateSwitch = () => {
       };
 
       cycleBreath();
-      const breathInterval = setInterval(() => {
-        cycleBreath();
-      }, durations[phaseIndex % 3]);
-
+      const breathInterval = setInterval(cycleBreath, durations[phaseIndex % 3]);
       return () => clearInterval(breathInterval);
     }
   }, [activeState, isRunning]);
@@ -109,32 +108,44 @@ export const StateSwitch = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Active state view
   if (activeState && activeConfig) {
     return (
-      <div className="h-full card-surface p-4 flex flex-col items-center justify-center relative">
+      <div className="h-full card-surface p-4 flex flex-col items-center justify-center relative overflow-hidden">
+        {/* Background glow */}
+        <div 
+          className="absolute inset-0 opacity-20"
+          style={{ background: `radial-gradient(circle at center, ${activeConfig.glow}, transparent 70%)` }}
+        />
+
         <button
           onClick={stopState}
-          className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
+          className="absolute top-3 right-3 p-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 transition-colors z-10"
         >
           <X className="h-4 w-4 text-muted-foreground" />
         </button>
 
-        <div className={cn(
-          "w-32 h-32 rounded-full flex items-center justify-center mb-4 transition-all duration-1000",
-          activeConfig.bgColor,
-          "border-2",
-          activeConfig.borderColor,
-          activeState === "focus" && isRunning && "animate-pulse scale-110",
-          activeState === "calm" && isRunning && (
-            breathPhase === "exhale" ? "scale-90" : "scale-110"
-          ),
-          activeState === "reset" && isRunning && "animate-pulse"
-        )}
-        style={{
-          boxShadow: `0 0 40px ${activeState === "focus" ? "#eab308" : activeState === "calm" ? "#3b82f6" : "#a855f7"}40`
-        }}
+        {/* Breathing orb */}
+        <div 
+          className={cn(
+            "w-28 h-28 rounded-full flex items-center justify-center mb-4 transition-all duration-1000 relative",
+            activeConfig.bgColor,
+            "border-2",
+            activeConfig.borderColor,
+            activeState === "focus" && isRunning && "animate-pulse",
+            activeState === "calm" && isRunning && (breathPhase === "exhale" ? "scale-75" : "scale-100"),
+            activeState === "reset" && isRunning && "animate-pulse"
+          )}
+          style={{ boxShadow: `0 0 60px ${activeConfig.glow}50` }}
         >
-          <div className={cn("transition-transform duration-500", activeConfig.textColor)}>
+          {/* Inner glow ring */}
+          <div className={cn(
+            "absolute inset-2 rounded-full border",
+            activeConfig.borderColor,
+            "opacity-50"
+          )} />
+          
+          <div className={cn("z-10", activeConfig.textColor)}>
             {activeConfig.icon}
           </div>
         </div>
@@ -144,14 +155,14 @@ export const StateSwitch = () => {
         </h4>
 
         {activeState === "calm" && (
-          <p className="font-mono text-sm text-muted-foreground mb-2 animate-pulse">
+          <p className={cn("font-mono text-xs mb-2 transition-opacity", activeConfig.textColor)}>
             {breathPhase === "inhale1" && "INHALE..."}
             {breathPhase === "inhale2" && "INHALE AGAIN..."}
-            {breathPhase === "exhale" && "LONG EXHALE..."}
+            {breathPhase === "exhale" && "EXHALE SLOWLY..."}
           </p>
         )}
 
-        <span className="font-mono text-3xl font-bold text-foreground mb-4">
+        <span className="font-mono text-4xl font-bold text-foreground mb-4 tabular-nums">
           {formatTime(timer)}
         </span>
 
@@ -161,7 +172,7 @@ export const StateSwitch = () => {
             "p-3 rounded-full transition-all btn-press",
             activeConfig.bgColor,
             activeConfig.borderColor,
-            "border"
+            "border-2"
           )}
         >
           {isRunning ? (
@@ -174,41 +185,49 @@ export const StateSwitch = () => {
     );
   }
 
+  // Default selection view
   return (
-    <div className="h-full card-surface p-4 flex flex-col">
-      <div className="flex items-center gap-2 mb-4">
-        <Zap className="h-5 w-5 text-emerald-400" />
-        <h3 className="font-mono text-sm font-bold text-foreground">STATE SWITCH</h3>
+    <div className="h-full card-surface p-4 flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-2 shrink-0">
+        <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+          <Zap className="h-4 w-4 text-emerald-400" />
+        </div>
+        <h3 className="font-mono text-xs font-bold text-foreground uppercase tracking-wider">State Switch</h3>
       </div>
 
-      <p className="font-mono text-[10px] text-muted-foreground mb-4">
-        Instant nervous system control. Tap to activate.
+      <p className="font-mono text-[9px] text-muted-foreground mb-3 shrink-0">
+        Instant nervous system control
       </p>
 
-      <div className="flex-1 flex flex-col gap-3">
+      {/* State buttons */}
+      <div className="flex-1 flex flex-col gap-2 min-h-0">
         {states.map((state) => (
           <button
             key={state.id}
             onClick={() => startState(state.id)}
             className={cn(
-              "flex-1 rounded-xl border-2 transition-all duration-300 btn-press",
-              "flex items-center justify-center gap-3",
-              "hover:scale-[1.02]",
+              "flex-1 min-h-0 rounded-xl border transition-all duration-300 btn-press",
+              "flex items-center gap-3 px-4",
+              "hover:scale-[1.02] active:scale-[0.98]",
               state.borderColor,
               state.bgColor,
-              "hover:shadow-lg"
+              "relative overflow-hidden group"
             )}
-            style={{
-              background: `linear-gradient(135deg, ${state.id === "focus" ? "#eab30810" : state.id === "calm" ? "#3b82f610" : "#a855f710"}, transparent)`
-            }}
           >
-            <div className={state.textColor}>{state.icon}</div>
-            <div className="text-left">
+            {/* Hover glow */}
+            <div 
+              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              style={{ background: `radial-gradient(circle at center, ${state.glow}15, transparent 70%)` }}
+            />
+            
+            <div className={cn("shrink-0 relative z-10", state.textColor)}>{state.icon}</div>
+            <div className="text-left relative z-10 min-w-0">
               <h4 className={cn("font-mono text-sm font-bold", state.textColor)}>
                 {state.label}
               </h4>
-              <p className="font-mono text-[9px] text-muted-foreground">
-                {state.description}
+              <p className="font-mono text-[9px] text-muted-foreground truncate">
+                {state.desc}
               </p>
             </div>
           </button>
