@@ -215,7 +215,7 @@ export default function Dashboard() {
           margin={[16, 16]}
           containerPadding={[0, 0]}
           isResizable={true}
-          resizeHandles={["se"]}
+          resizeHandles={["s", "e", "se"]}
         >
         {widgets.map((widget) => {
           const WidgetComponent = widgetComponents[widget.type];
