@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import GridLayout from "react-grid-layout";
+import { useState, useEffect, useRef, ComponentType } from "react";
+import RGL from "react-grid-layout";
 import { Plus, GripVertical, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ReadinessArc } from "@/components/cockpit/ReadinessArc";
@@ -13,9 +13,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import "react-grid-layout/css/styles.css";
 
-// @ts-ignore - WidthProvider is exported but types are incorrect
-const WidthProvider = require("react-grid-layout").WidthProvider;
-const ReactGridLayout = WidthProvider(GridLayout);
+// Cast to any to avoid type issues with react-grid-layout
+const ReactGridLayout = RGL as ComponentType<any>;
 
 interface LayoutItem {
   i: string;
@@ -63,6 +62,9 @@ const STORAGE_KEY_LAYOUTS = "cockpit-layouts";
 const STORAGE_KEY_WIDGETS = "cockpit-widgets";
 
 export default function Dashboard() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(1200);
+  
   const [layouts, setLayouts] = useState<LayoutItem[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_LAYOUTS);
     return saved ? JSON.parse(saved) : defaultLayouts;
@@ -71,6 +73,19 @@ export default function Dashboard() {
     const saved = localStorage.getItem(STORAGE_KEY_WIDGETS);
     return saved ? JSON.parse(saved) : defaultWidgets;
   });
+
+  // Measure container width
+  useEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.offsetWidth);
+      }
+    };
+    
+    updateWidth();
+    window.addEventListener("resize", updateWidth);
+    return () => window.removeEventListener("resize", updateWidth);
+  }, []);
 
   // Persist to localStorage
   useEffect(() => {
@@ -119,7 +134,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen p-6">
+    <div className="min-h-screen p-6" ref={containerRef}>
       {/* Header */}
       <header className="mb-6 flex items-center justify-between">
         <div>
@@ -153,18 +168,20 @@ export default function Dashboard() {
       </header>
 
       {/* Grid Dashboard */}
-      <ReactGridLayout
-        className="layout"
-        layout={layouts}
-        cols={3}
-        rowHeight={180}
-        onLayoutChange={handleLayoutChange}
-        draggableHandle=".drag-handle"
-        margin={[16, 16]}
-        containerPadding={[0, 0]}
-        isResizable={true}
-        resizeHandles={["se"]}
-      >
+      {(ReactGridLayout as any) && (
+        <ReactGridLayout
+          className="layout"
+          layout={layouts}
+          cols={3}
+          rowHeight={180}
+          width={containerWidth - 48}
+          onLayoutChange={(newLayout: LayoutItem[]) => handleLayoutChange(newLayout)}
+          draggableHandle=".drag-handle"
+          margin={[16, 16]}
+          containerPadding={[0, 0]}
+          isResizable={true}
+          resizeHandles={["se"]}
+        >
         {widgets.map((widget) => {
           const WidgetComponent = widgetComponents[widget.type];
           return (
@@ -191,7 +208,8 @@ export default function Dashboard() {
             </div>
           );
         })}
-      </ReactGridLayout>
+        </ReactGridLayout>
+      )}
 
       {/* Empty State */}
       {widgets.length === 0 && (
