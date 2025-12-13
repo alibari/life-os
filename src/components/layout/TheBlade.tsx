@@ -42,7 +42,7 @@ export function TheBlade({ collapsed, onToggle }: TheBladeProps) {
   return (
     <aside
       className={cn(
-        "h-screen sticky top-0 flex flex-col border-r border-border bg-background transition-all duration-300",
+        "h-screen sticky top-0 flex flex-col border-r border-border bg-background transition-all duration-300 z-50",
         collapsed ? "w-16" : "w-56"
       )}
     >
@@ -109,7 +109,7 @@ export function TheBlade({ collapsed, onToggle }: TheBladeProps) {
             return (
               <Tooltip key={item.path} delayDuration={0}>
                 <TooltipTrigger asChild>{button}</TooltipTrigger>
-                <TooltipContent side="right" className="font-mono text-xs">
+                <TooltipContent side="right" className="font-mono text-xs z-[100]">
                   {item.label}
                 </TooltipContent>
               </Tooltip>

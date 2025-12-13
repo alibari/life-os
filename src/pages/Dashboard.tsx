@@ -23,6 +23,10 @@ interface LayoutItem {
   y: number;
   w: number;
   h: number;
+  minW?: number;
+  maxW?: number;
+  minH?: number;
+  maxH?: number;
 }
 
 interface WidgetConfig {
@@ -44,9 +48,9 @@ const availableWidgets = [
 ];
 
 const defaultLayouts: LayoutItem[] = [
-  { i: "readiness-1", x: 0, y: 0, w: 1, h: 2 },
-  { i: "circadian-1", x: 1, y: 0, w: 1, h: 2 },
-  { i: "voltage-1", x: 2, y: 0, w: 1, h: 2 },
+  { i: "readiness-1", x: 0, y: 0, w: 1, h: 2, minW: 1, maxW: 3, minH: 2, maxH: 4 },
+  { i: "circadian-1", x: 1, y: 0, w: 1, h: 2, minW: 1, maxW: 3, minH: 2, maxH: 4 },
+  { i: "voltage-1", x: 2, y: 0, w: 1, h: 2, minW: 1, maxW: 3, minH: 2, maxH: 4 },
 ];
 
 const defaultWidgets: WidgetConfig[] = [
@@ -74,7 +78,7 @@ export default function Dashboard() {
     const newWidget: WidgetConfig = { id: newId, type, title };
     
     const maxY = layouts.reduce((max, l) => Math.max(max, l.y + l.h), 0);
-    const newLayout: LayoutItem = { i: newId, x: 0, y: maxY, w: 1, h: 2 };
+    const newLayout: LayoutItem = { i: newId, x: 0, y: maxY, w: 1, h: 2, minW: 1, maxW: 3, minH: 2, maxH: 4 };
     
     setWidgets([...widgets, newWidget]);
     setLayouts([...layouts, newLayout]);
