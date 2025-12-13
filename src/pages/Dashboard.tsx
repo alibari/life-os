@@ -5,6 +5,10 @@ import { Button } from "@/components/ui/button";
 import { ReadinessArc } from "@/components/cockpit/ReadinessArc";
 import { CircadianClock } from "@/components/cockpit/CircadianClock";
 import { TReadyScore } from "@/components/cockpit/TReadyScore";
+import { DopamineDelta } from "@/components/cockpit/DopamineDelta";
+import { PFCBattery } from "@/components/cockpit/PFCBattery";
+import { AdenosinePressure } from "@/components/cockpit/AdenosinePressure";
+import { StateSwitch } from "@/components/cockpit/StateSwitch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,12 +42,20 @@ const widgetComponents: Record<string, React.FC> = {
   readiness: ReadinessArc,
   circadian: CircadianClock,
   voltage: TReadyScore,
+  dopamine: DopamineDelta,
+  pfc: PFCBattery,
+  adenosine: AdenosinePressure,
+  stateswitch: StateSwitch,
 };
 
 const availableWidgets = [
   { type: "readiness", title: "Readiness Index" },
   { type: "circadian", title: "Circadian Rhythm" },
   { type: "voltage", title: "System Voltage" },
+  { type: "dopamine", title: "Dopamine Delta" },
+  { type: "pfc", title: "PFC Battery" },
+  { type: "adenosine", title: "Adenosine Pressure" },
+  { type: "stateswitch", title: "State Switch" },
 ];
 
 const defaultLayouts: LayoutItem[] = [
