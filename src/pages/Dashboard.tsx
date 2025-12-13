@@ -13,6 +13,8 @@ import { BrainScore } from "@/components/cockpit/BrainScore";
 import { NutritionScore } from "@/components/cockpit/NutritionScore";
 import { AdvancedGraph } from "@/components/cockpit/AdvancedGraph";
 import { YearTracker } from "@/components/cockpit/YearTracker";
+import { BiohackTracker } from "@/components/cockpit/BiohackTracker";
+import { AISummary } from "@/components/cockpit/AISummary";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,6 +56,8 @@ const widgetComponents: Record<string, React.FC> = {
   nutrition: NutritionScore,
   graph: AdvancedGraph,
   yeartracker: YearTracker,
+  biohack: BiohackTracker,
+  aisummary: AISummary,
 };
 
 const availableWidgets = [
@@ -68,12 +72,14 @@ const availableWidgets = [
   { type: "nutrition", title: "Nutrition Score" },
   { type: "graph", title: "Performance Trend" },
   { type: "yeartracker", title: "365 Days Tracker" },
+  { type: "biohack", title: "Biohack Tracker" },
+  { type: "aisummary", title: "AI Insights" },
 ];
 
 const defaultLayouts: LayoutItem[] = [
-  { i: "readiness-1", x: 0, y: 0, w: 2, h: 2, minW: 1, maxW: 4, minH: 2, maxH: 6 },
-  { i: "circadian-1", x: 2, y: 0, w: 2, h: 2, minW: 1, maxW: 4, minH: 2, maxH: 6 },
-  { i: "voltage-1", x: 4, y: 0, w: 2, h: 2, minW: 1, maxW: 4, minH: 2, maxH: 6 },
+  { i: "readiness-1", x: 0, y: 0, w: 2, h: 2, minW: 1, maxW: 6, minH: 2, maxH: 6 },
+  { i: "circadian-1", x: 2, y: 0, w: 2, h: 2, minW: 1, maxW: 6, minH: 2, maxH: 6 },
+  { i: "voltage-1", x: 4, y: 0, w: 2, h: 2, minW: 1, maxW: 6, minH: 2, maxH: 6 },
 ];
 
 const defaultWidgets: WidgetConfig[] = [
@@ -133,7 +139,7 @@ export default function Dashboard() {
       return {
         ...item,
         minW: existing?.minW ?? 1,
-        maxW: existing?.maxW ?? 4,
+        maxW: existing?.maxW ?? 6,
         minH: existing?.minH ?? 2,
         maxH: existing?.maxH ?? 6,
       };
@@ -146,15 +152,24 @@ export default function Dashboard() {
     const newWidget: WidgetConfig = { id: newId, type, title };
     
     const maxY = layouts.reduce((max, l) => Math.max(max, l.y + l.h), 0);
-    const isLargeWidget = type === "graph";
-    const isYearTracker = type === "yeartracker";
+    
+    // Widget size configurations
+    const widgetSizes: Record<string, { w: number; h: number; minW: number }> = {
+      yeartracker: { w: 6, h: 3, minW: 4 },
+      graph: { w: 4, h: 3, minW: 2 },
+      biohack: { w: 2, h: 3, minW: 2 },
+      aisummary: { w: 2, h: 3, minW: 2 },
+    };
+    
+    const size = widgetSizes[type] || { w: 2, h: 2, minW: 1 };
+    
     const newLayout: LayoutItem = { 
       i: newId, 
       x: 0, 
       y: maxY, 
-      w: isYearTracker ? 6 : (isLargeWidget ? 4 : 2), 
-      h: isYearTracker ? 2 : (isLargeWidget ? 3 : 2), 
-      minW: isYearTracker ? 4 : 1, 
+      w: size.w, 
+      h: size.h, 
+      minW: size.minW, 
       maxW: 6, 
       minH: 2, 
       maxH: 6 
