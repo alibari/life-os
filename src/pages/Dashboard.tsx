@@ -71,9 +71,9 @@ const availableWidgets = [
 ];
 
 const defaultLayouts: LayoutItem[] = [
-  { i: "readiness-1", x: 0, y: 0, w: 1, h: 2, minW: 1, maxW: 3, minH: 2, maxH: 6 },
-  { i: "circadian-1", x: 1, y: 0, w: 1, h: 2, minW: 1, maxW: 3, minH: 2, maxH: 6 },
-  { i: "voltage-1", x: 2, y: 0, w: 1, h: 2, minW: 1, maxW: 3, minH: 2, maxH: 6 },
+  { i: "readiness-1", x: 0, y: 0, w: 2, h: 2, minW: 1, maxW: 4, minH: 2, maxH: 6 },
+  { i: "circadian-1", x: 2, y: 0, w: 2, h: 2, minW: 1, maxW: 4, minH: 2, maxH: 6 },
+  { i: "voltage-1", x: 4, y: 0, w: 2, h: 2, minW: 1, maxW: 4, minH: 2, maxH: 6 },
 ];
 
 const defaultWidgets: WidgetConfig[] = [
@@ -133,7 +133,7 @@ export default function Dashboard() {
       return {
         ...item,
         minW: existing?.minW ?? 1,
-        maxW: existing?.maxW ?? 3,
+        maxW: existing?.maxW ?? 4,
         minH: existing?.minH ?? 2,
         maxH: existing?.maxH ?? 6,
       };
@@ -151,10 +151,10 @@ export default function Dashboard() {
       i: newId, 
       x: 0, 
       y: maxY, 
-      w: isLargeWidget ? 2 : 1, 
+      w: isLargeWidget ? 3 : 2, 
       h: isLargeWidget ? 3 : 2, 
       minW: 1, 
-      maxW: 3, 
+      maxW: 4, 
       minH: 2, 
       maxH: 6 
     };
@@ -207,12 +207,12 @@ export default function Dashboard() {
         <ReactGridLayout
           className="layout"
           layout={layouts}
-          cols={3}
-          rowHeight={180}
+          cols={6}
+          rowHeight={160}
           width={containerWidth - 48}
           onLayoutChange={(newLayout: LayoutItem[]) => handleLayoutChange(newLayout)}
           draggableHandle=".drag-handle"
-          margin={[16, 16]}
+          margin={[12, 12]}
           containerPadding={[0, 0]}
           isResizable={true}
           resizeHandles={["s", "e", "se"]}
