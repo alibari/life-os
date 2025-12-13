@@ -144,3 +144,23 @@
     @apply transition-transform active:scale-95;
   }
 }
+
+/* React Grid Layout Overrides */
+.react-grid-item.react-grid-placeholder {
+  background: hsl(var(--primary) / 0.2) !important;
+  border: 2px dashed hsl(var(--primary)) !important;
+  border-radius: var(--radius);
+}
+
+.react-grid-item > .react-resizable-handle::after {
+  border-color: hsl(var(--muted-foreground)) !important;
+}
+
+.react-grid-item.resizing {
+  z-index: 10;
+}
+
+.react-grid-item.react-draggable-dragging {
+  z-index: 10;
+  opacity: 0.9;
+}

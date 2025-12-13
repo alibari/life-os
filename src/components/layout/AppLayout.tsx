@@ -1,29 +1,17 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
-import { Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { TheBlade } from "./TheBlade";
 
 export function AppLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Floating Menu Trigger */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="fixed top-4 left-4 z-50 btn-press glass rounded-full h-12 w-12"
-        onClick={() => setSidebarOpen(true)}
-      >
-        <Menu className="h-5 w-5" />
-      </Button>
-
-      {/* The Blade Sidebar */}
-      <TheBlade open={sidebarOpen} onOpenChange={setSidebarOpen} />
+    <div className="min-h-screen bg-background flex w-full">
+      {/* Persistent Sidebar */}
+      <TheBlade collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
 
       {/* Main Content */}
-      <main className="min-h-screen">
+      <main className="flex-1 min-h-screen overflow-auto">
         <Outlet />
       </main>
     </div>
