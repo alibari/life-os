@@ -9,6 +9,10 @@ import { DopamineDelta } from "@/components/cockpit/DopamineDelta";
 import { PFCBattery } from "@/components/cockpit/PFCBattery";
 import { AdenosinePressure } from "@/components/cockpit/AdenosinePressure";
 import { StateSwitch } from "@/components/cockpit/StateSwitch";
+import { BrainScore } from "@/components/cockpit/BrainScore";
+import { NutritionScore } from "@/components/cockpit/NutritionScore";
+import { AdvancedGraph } from "@/components/cockpit/AdvancedGraph";
+import { YearTracker } from "@/components/cockpit/YearTracker";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,6 +50,10 @@ const widgetComponents: Record<string, React.FC> = {
   pfc: PFCBattery,
   adenosine: AdenosinePressure,
   stateswitch: StateSwitch,
+  brain: BrainScore,
+  nutrition: NutritionScore,
+  graph: AdvancedGraph,
+  yeartracker: YearTracker,
 };
 
 const availableWidgets = [
@@ -56,12 +64,16 @@ const availableWidgets = [
   { type: "pfc", title: "PFC Battery" },
   { type: "adenosine", title: "Adenosine Pressure" },
   { type: "stateswitch", title: "State Switch" },
+  { type: "brain", title: "Brain Score" },
+  { type: "nutrition", title: "Nutrition Score" },
+  { type: "graph", title: "Performance Trend" },
+  { type: "yeartracker", title: "365 Days Tracker" },
 ];
 
 const defaultLayouts: LayoutItem[] = [
-  { i: "readiness-1", x: 0, y: 0, w: 1, h: 2, minW: 1, maxW: 3, minH: 2, maxH: 4 },
-  { i: "circadian-1", x: 1, y: 0, w: 1, h: 2, minW: 1, maxW: 3, minH: 2, maxH: 4 },
-  { i: "voltage-1", x: 2, y: 0, w: 1, h: 2, minW: 1, maxW: 3, minH: 2, maxH: 4 },
+  { i: "readiness-1", x: 0, y: 0, w: 1, h: 2, minW: 1, maxW: 3, minH: 2, maxH: 6 },
+  { i: "circadian-1", x: 1, y: 0, w: 1, h: 2, minW: 1, maxW: 3, minH: 2, maxH: 6 },
+  { i: "voltage-1", x: 2, y: 0, w: 1, h: 2, minW: 1, maxW: 3, minH: 2, maxH: 6 },
 ];
 
 const defaultWidgets: WidgetConfig[] = [
@@ -123,7 +135,7 @@ export default function Dashboard() {
         minW: existing?.minW ?? 1,
         maxW: existing?.maxW ?? 3,
         minH: existing?.minH ?? 2,
-        maxH: existing?.maxH ?? 4,
+        maxH: existing?.maxH ?? 6,
       };
     });
     setLayouts(updatedLayout);
@@ -134,7 +146,18 @@ export default function Dashboard() {
     const newWidget: WidgetConfig = { id: newId, type, title };
     
     const maxY = layouts.reduce((max, l) => Math.max(max, l.y + l.h), 0);
-    const newLayout: LayoutItem = { i: newId, x: 0, y: maxY, w: 1, h: 2, minW: 1, maxW: 3, minH: 2, maxH: 4 };
+    const isLargeWidget = type === "graph" || type === "yeartracker";
+    const newLayout: LayoutItem = { 
+      i: newId, 
+      x: 0, 
+      y: maxY, 
+      w: isLargeWidget ? 2 : 1, 
+      h: isLargeWidget ? 3 : 2, 
+      minW: 1, 
+      maxW: 3, 
+      minH: 2, 
+      maxH: 6 
+    };
     
     setWidgets([...widgets, newWidget]);
     setLayouts([...layouts, newLayout]);

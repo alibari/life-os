@@ -191,6 +191,6 @@
 /* Canvas grid pattern */
 .cockpit-canvas {
   background-image: 
-    radial-gradient(circle at 1px 1px, hsl(var(--border)) 1px, transparent 0);
-  background-size: 24px 24px;
+    radial-gradient(circle at 1px 1px, hsl(var(--border) / 0.3) 1px, transparent 0);
+  background-size: 32px 32px;
 }
