@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import ReactGridLayout from "react-grid-layout";
+import { useState, useEffect } from "react";
+import GridLayout from "react-grid-layout";
 import { Plus, GripVertical, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ReadinessArc } from "@/components/cockpit/ReadinessArc";
@@ -13,9 +13,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import "react-grid-layout/css/styles.css";
 
-// Access WidthProvider from the module
-const WidthProvider = (ReactGridLayout as any).WidthProvider;
-const GridLayout = WidthProvider(ReactGridLayout);
+// @ts-ignore - WidthProvider is exported but types are incorrect
+const WidthProvider = require("react-grid-layout").WidthProvider;
+const ReactGridLayout = WidthProvider(GridLayout);
 
 interface LayoutItem {
   i: string;
@@ -153,7 +153,7 @@ export default function Dashboard() {
       </header>
 
       {/* Grid Dashboard */}
-      <GridLayout
+      <ReactGridLayout
         className="layout"
         layout={layouts}
         cols={3}
@@ -191,7 +191,7 @@ export default function Dashboard() {
             </div>
           );
         })}
-      </GridLayout>
+      </ReactGridLayout>
 
       {/* Empty State */}
       {widgets.length === 0 && (
