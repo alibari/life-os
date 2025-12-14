@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
-import { Play, Pause, RotateCcw, Target, Clock, Zap, Brain, Eye, Sparkles, Activity, Timer, LayoutGrid, LineChart, Settings2, Monitor, EyeOff } from "lucide-react";
+import { useState, useEffect, useRef, ComponentType } from "react";
+import RGL from "react-grid-layout";
+import { Play, Pause, RotateCcw, Target, Clock, Zap, Brain, Eye, Sparkles, Activity, Timer, LayoutGrid, LineChart, Settings2, Monitor, GripVertical, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,17 @@ import { FocusGoals } from "@/components/flowstate/FocusGoals";
 import { SessionTypeSelector, SessionType } from "@/components/flowstate/SessionTypeSelector";
 import { FlowAIInsights } from "@/components/flowstate/FlowAIInsights";
 import { AppTracker } from "@/components/flowstate/AppTracker";
+import { useUserSettings } from "@/hooks/useUserSettings";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import "react-grid-layout/css/styles.css";
+
+const ReactGridLayout = RGL as ComponentType<any>;
 
 const ULTRADIAN_DURATION = 90 * 60;
 const BREAK_DURATION = 20 * 60;
@@ -32,6 +44,24 @@ interface Session {
   sessionType?: SessionType;
 }
 
+interface LayoutItem {
+  i: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  minW?: number;
+  maxW?: number;
+  minH?: number;
+  maxH?: number;
+}
+
+interface WidgetConfig {
+  id: string;
+  type: string;
+  title: string;
+}
+
 const PROTOCOL_STEPS = [
   { icon: Eye, label: "Visual Anchor", desc: "30s focus prime", color: "warning" },
   { icon: Activity, label: "Friction", desc: "0-15min load", color: "warning" },
@@ -39,14 +69,22 @@ const PROTOCOL_STEPS = [
   { icon: Timer, label: "Decline", desc: "75-90min wrap", color: "destructive" },
 ];
 
+const availableFlowWidgets = [
+  { type: "weeklystreak", title: "Weekly Streak" },
+  { type: "focusgoals", title: "Focus Goals" },
+  { type: "aiinsights", title: "AI Insights" },
+  { type: "apptracker", title: "App Tracker" },
+];
+
 export default function FlowState() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(1200);
   const [phase, setPhase] = useState<SessionPhase>("idle");
   const [timeRemaining, setTimeRemaining] = useState(ULTRADIAN_DURATION);
   const [isRunning, setIsRunning] = useState(false);
   const [currentMission, setCurrentMission] = useState("");
   const [sessionType, setSessionType] = useState<SessionType>("deep-work");
   const [capturedThoughts, setCapturedThoughts] = useState<string[]>([]);
-  const [showAppTracker, setShowAppTracker] = useState(true);
   const [sessions, setSessions] = useState<Session[]>(() => {
     const saved = localStorage.getItem("flowstate-sessions");
     return saved ? JSON.parse(saved) : [];
@@ -54,11 +92,35 @@ export default function FlowState() {
   const [currentSessionStart, setCurrentSessionStart] = useState<Date | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  const { user } = useAuth();
+  const { 
+    flowLayouts, 
+    flowWidgets, 
+    updateFlowLayouts, 
+    updateFlowWidgets,
+    setFlowLayouts,
+    setFlowWidgets,
+    loading 
+  } = useUserSettings();
+
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
   });
+
+  // Measure container width
+  useEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.offsetWidth);
+      }
+    };
+    
+    updateWidth();
+    window.addEventListener("resize", updateWidth);
+    return () => window.removeEventListener("resize", updateWidth);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("flowstate-sessions", JSON.stringify(sessions));
@@ -153,6 +215,69 @@ export default function FlowState() {
     setCapturedThoughts((prev) => [...prev, thought]);
   };
 
+  const handleLayoutChange = (newLayout: LayoutItem[]) => {
+    const updatedLayout = flowLayouts.map((existing) => {
+      const changed = newLayout.find((l) => l.i === existing.i);
+      if (changed) {
+        return {
+          ...changed,
+          minW: existing.minW ?? 1,
+          maxW: existing.maxW ?? 6,
+          minH: existing.minH ?? 1,
+          maxH: existing.maxH ?? 8,
+        };
+      }
+      return existing;
+    });
+    updateFlowLayouts(updatedLayout);
+  };
+
+  const addWidget = (type: string, title: string) => {
+    const newId = `flow-${type}-${Date.now()}`;
+    const newWidget: WidgetConfig = { id: newId, type, title };
+    
+    const maxY = flowLayouts.reduce((max, l) => Math.max(max, l.y + l.h), 0);
+    
+    const widgetSizes: Record<string, { w: number; h: number; minW: number; minH: number }> = {
+      apptracker: { w: 4, h: 3, minW: 2, minH: 2 },
+      weeklystreak: { w: 2, h: 2, minW: 1, minH: 2 },
+      focusgoals: { w: 2, h: 2, minW: 1, minH: 2 },
+      aiinsights: { w: 2, h: 2, minW: 1, minH: 2 },
+    };
+    
+    const size = widgetSizes[type] || { w: 2, h: 2, minW: 1, minH: 1 };
+    
+    const newLayout: LayoutItem = { 
+      i: newId, 
+      x: 0, 
+      y: maxY, 
+      w: size.w, 
+      h: size.h, 
+      minW: size.minW, 
+      maxW: 6, 
+      minH: size.minH, 
+      maxH: 8 
+    };
+    
+    const newWidgets = [...flowWidgets, newWidget];
+    const newLayouts = [...flowLayouts, newLayout];
+    
+    setFlowWidgets(newWidgets);
+    setFlowLayouts(newLayouts);
+    updateFlowWidgets(newWidgets);
+    updateFlowLayouts(newLayouts);
+  };
+
+  const removeWidget = (id: string) => {
+    const newWidgets = flowWidgets.filter((w) => w.id !== id);
+    const newLayouts = flowLayouts.filter((l) => l.i !== id);
+    
+    setFlowWidgets(newWidgets);
+    setFlowLayouts(newLayouts);
+    updateFlowWidgets(newWidgets);
+    updateFlowLayouts(newLayouts);
+  };
+
   const todaySessions = sessions.filter(
     (s) => new Date(s.startTime).toDateString() === new Date().toDateString()
   );
@@ -172,6 +297,22 @@ export default function FlowState() {
   };
   const currentZone = getCurrentZone();
 
+  // Render widget by type
+  const renderWidget = (widget: WidgetConfig) => {
+    switch (widget.type) {
+      case "weeklystreak":
+        return <WeeklyStreak sessions={sessions} />;
+      case "focusgoals":
+        return <FocusGoals todayFocusMinutes={totalFocusToday} />;
+      case "aiinsights":
+        return <FlowAIInsights sessions={sessions} todayFocusMinutes={totalFocusToday} avgRPE={avgRPE} />;
+      case "apptracker":
+        return <AppTracker isVisible={true} onToggleVisibility={() => {}} />;
+      default:
+        return null;
+    }
+  };
+
   if (phase === "anchor") {
     return <VisualAnchor onComplete={handleAnchorComplete} onCancel={handleAnchorCancel} />;
   }
@@ -190,13 +331,24 @@ export default function FlowState() {
     return <RefractionBreak onComplete={handleRefractionComplete} />;
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center cockpit-canvas">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-secondary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground text-sm">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen p-4 md:p-6">
+    <div className="min-h-screen p-4 md:p-6 cockpit-canvas" ref={containerRef}>
       {/* Compact Header */}
       <header className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-focus/10 border border-focus/20">
-            <Brain className="h-5 w-5 text-focus" />
+          <div className="p-2 rounded-lg bg-secondary/10 border border-secondary/20">
+            <Brain className="h-5 w-5 text-secondary" />
           </div>
           <div>
             <h1 className="font-mono text-lg font-bold text-foreground tracking-tight">
@@ -233,35 +385,47 @@ export default function FlowState() {
               </p>
             </div>
           )}
-          <button
-            onClick={() => setShowAppTracker(!showAppTracker)}
-            className={cn(
-              "p-2 rounded-lg border transition-all",
-              showAppTracker 
-                ? "bg-focus/10 border-focus/30 text-focus" 
-                : "bg-background border-border text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Monitor className="h-4 w-4" />
-          </button>
         </div>
       </header>
 
       <Tabs defaultValue="session" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-3 mb-4 bg-card border border-border">
-          <TabsTrigger value="session" className="font-mono text-xs data-[state=active]:bg-focus/20 data-[state=active]:text-focus">
-            <Zap className="h-3 w-3 mr-1.5" />
-            Session
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="font-mono text-xs data-[state=active]:bg-growth/20 data-[state=active]:text-growth">
-            <LineChart className="h-3 w-3 mr-1.5" />
-            Analytics
-          </TabsTrigger>
-          <TabsTrigger value="widgets" className="font-mono text-xs data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
-            <LayoutGrid className="h-3 w-3 mr-1.5" />
-            Widgets
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between mb-4">
+          <TabsList className="grid w-full max-w-md grid-cols-3 bg-card border border-border">
+            <TabsTrigger value="session" className="font-mono text-xs data-[state=active]:bg-secondary/20 data-[state=active]:text-secondary">
+              <Zap className="h-3 w-3 mr-1.5" />
+              Session
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="font-mono text-xs data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
+              <LineChart className="h-3 w-3 mr-1.5" />
+              Analytics
+            </TabsTrigger>
+            <TabsTrigger value="widgets" className="font-mono text-xs data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
+              <LayoutGrid className="h-3 w-3 mr-1.5" />
+              Widgets
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Add Widget Button - Only shown on analytics/widgets tabs */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="btn-press gap-2 border-secondary/30 hover:border-secondary/60">
+                <Plus className="h-4 w-4 text-secondary" />
+                <span className="hidden sm:inline">Add Widget</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="border-border bg-card/95 backdrop-blur-xl">
+              {availableFlowWidgets.map((widget) => (
+                <DropdownMenuItem
+                  key={widget.type}
+                  onClick={() => addWidget(widget.type, widget.title)}
+                  className="font-mono text-xs cursor-pointer"
+                >
+                  {widget.title}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
         {/* Session Tab */}
         <TabsContent value="session" className="mt-0">
@@ -277,7 +441,7 @@ export default function FlowState() {
                       <div
                         className={cn(
                           "w-2 h-2 rounded-full",
-                          phase === "focus" && "bg-focus animate-pulse",
+                          phase === "focus" && "bg-secondary animate-pulse",
                           phase === "break" && "bg-growth animate-pulse",
                           phase === "idle" && "bg-muted-foreground",
                           phase === "complete" && "bg-growth"
@@ -320,12 +484,12 @@ export default function FlowState() {
                         value={currentMission}
                         onChange={(e) => setCurrentMission(e.target.value)}
                         placeholder="What's your focus for this session?"
-                        className="w-full bg-background border border-border rounded-lg px-4 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-focus/50 text-center"
+                        className="w-full bg-background border border-border rounded-lg px-4 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-secondary/50 text-center"
                       />
                     </div>
                   ) : currentMission && (
                     <div className="flex items-center gap-2 mb-4 px-3 py-1.5 bg-background/50 rounded-lg border border-border">
-                      <Target className="h-3 w-3 text-focus shrink-0" />
+                      <Target className="h-3 w-3 text-secondary shrink-0" />
                       <p className="font-mono text-xs text-foreground truncate">{currentMission}</p>
                     </div>
                   )}
@@ -336,7 +500,7 @@ export default function FlowState() {
                       <Button
                         onClick={startSession}
                         size="lg"
-                        className="btn-press gap-2 bg-focus hover:bg-focus/90 text-white font-mono px-8"
+                        className="btn-press gap-2 bg-secondary hover:bg-secondary/90 text-white font-mono px-8"
                       >
                         <Zap className="h-4 w-4" />
                         INITIATE
@@ -453,7 +617,7 @@ export default function FlowState() {
                           {session.rpe && (
                             <span className={cn(
                               "font-mono text-[9px] px-1 py-0.5 rounded",
-                              session.rpe <= 4 && "bg-growth/20 text-growth",
+                              session.rpe <= 4 && "bg-primary/20 text-primary",
                               session.rpe > 4 && session.rpe <= 7 && "bg-warning/20 text-warning",
                               session.rpe > 7 && "bg-destructive/20 text-destructive"
                             )}>
@@ -468,45 +632,129 @@ export default function FlowState() {
               </div>
 
               {/* Tip */}
-              <div className="card-surface p-3 border-focus/20">
+              <div className="card-surface p-3 border-secondary/20">
                 <p className="font-mono text-[10px] text-muted-foreground leading-relaxed">
-                  <span className="text-focus font-medium">Pro Tip:</span> The first 15 minutes feel hard—that's norepinephrine loading. Flow starts after the friction zone.
+                  <span className="text-secondary font-medium">Pro Tip:</span> The first 15 minutes feel hard—that's norepinephrine loading. Flow starts after the friction zone.
                 </p>
               </div>
             </div>
           </div>
         </TabsContent>
 
-        {/* Analytics Tab */}
+        {/* Analytics Tab - Grid Layout */}
         <TabsContent value="analytics" className="mt-0">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <WeeklyStreak sessions={sessions} />
-            <FocusGoals todayFocusMinutes={totalFocusToday} />
-            <FlowAIInsights 
-              sessions={sessions} 
-              todayFocusMinutes={totalFocusToday}
-              avgRPE={avgRPE}
-            />
-          </div>
+          {flowWidgets.length > 0 ? (
+            <ReactGridLayout
+              className="layout"
+              layout={flowLayouts}
+              cols={6}
+              rowHeight={140}
+              width={containerWidth - 48}
+              onLayoutChange={handleLayoutChange}
+              draggableHandle=".drag-handle"
+              margin={[16, 16]}
+              containerPadding={[0, 0]}
+              isResizable={true}
+              isDraggable={true}
+              resizeHandles={["s", "e", "se", "sw", "n", "w", "nw", "ne"]}
+            >
+              {flowWidgets.map((widget) => (
+                <div key={widget.id} className="relative group">
+                  {/* Widget Controls */}
+                  <div className="absolute top-2 right-2 z-20 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                    <button
+                      className="drag-handle p-1.5 rounded-md bg-background/90 backdrop-blur-sm border border-border/80 hover:border-secondary/50 hover:bg-secondary/10 cursor-grab active:cursor-grabbing transition-all shadow-sm"
+                      title="Drag to move"
+                    >
+                      <GripVertical className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
+                    </button>
+                    <button
+                      onClick={() => removeWidget(widget.id)}
+                      className="p-1.5 rounded-md bg-background/90 backdrop-blur-sm border border-border/80 hover:bg-destructive/20 hover:border-destructive/50 transition-all shadow-sm"
+                      title="Remove widget"
+                    >
+                      <X className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                    </button>
+                  </div>
+
+                  {/* Widget Content */}
+                  <div className="h-full overflow-hidden">
+                    {renderWidget(widget)}
+                  </div>
+                </div>
+              ))}
+            </ReactGridLayout>
+          ) : (
+            <div className="card-surface p-12 text-center">
+              <p className="text-muted-foreground mb-4">No widgets added yet</p>
+              <Button
+                variant="outline"
+                onClick={() => addWidget("weeklystreak", "Weekly Streak")}
+                className="btn-press"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add your first widget
+              </Button>
+            </div>
+          )}
         </TabsContent>
 
-        {/* Widgets Tab */}
+        {/* Widgets Tab - Same Grid Layout */}
         <TabsContent value="widgets" className="mt-0">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <WeeklyStreak sessions={sessions} />
-            <FocusGoals todayFocusMinutes={totalFocusToday} />
-            <FlowAIInsights 
-              sessions={sessions} 
-              todayFocusMinutes={totalFocusToday}
-              avgRPE={avgRPE}
-            />
-            <div className="lg:col-span-2">
-              <AppTracker 
-                isVisible={showAppTracker} 
-                onToggleVisibility={() => setShowAppTracker(!showAppTracker)} 
-              />
+          {flowWidgets.length > 0 ? (
+            <ReactGridLayout
+              className="layout"
+              layout={flowLayouts}
+              cols={6}
+              rowHeight={140}
+              width={containerWidth - 48}
+              onLayoutChange={handleLayoutChange}
+              draggableHandle=".drag-handle"
+              margin={[16, 16]}
+              containerPadding={[0, 0]}
+              isResizable={true}
+              isDraggable={true}
+              resizeHandles={["s", "e", "se", "sw", "n", "w", "nw", "ne"]}
+            >
+              {flowWidgets.map((widget) => (
+                <div key={widget.id} className="relative group">
+                  {/* Widget Controls */}
+                  <div className="absolute top-2 right-2 z-20 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                    <button
+                      className="drag-handle p-1.5 rounded-md bg-background/90 backdrop-blur-sm border border-border/80 hover:border-secondary/50 hover:bg-secondary/10 cursor-grab active:cursor-grabbing transition-all shadow-sm"
+                      title="Drag to move"
+                    >
+                      <GripVertical className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
+                    </button>
+                    <button
+                      onClick={() => removeWidget(widget.id)}
+                      className="p-1.5 rounded-md bg-background/90 backdrop-blur-sm border border-border/80 hover:bg-destructive/20 hover:border-destructive/50 transition-all shadow-sm"
+                      title="Remove widget"
+                    >
+                      <X className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                    </button>
+                  </div>
+
+                  {/* Widget Content */}
+                  <div className="h-full overflow-hidden">
+                    {renderWidget(widget)}
+                  </div>
+                </div>
+              ))}
+            </ReactGridLayout>
+          ) : (
+            <div className="card-surface p-12 text-center">
+              <p className="text-muted-foreground mb-4">No widgets added yet</p>
+              <Button
+                variant="outline"
+                onClick={() => addWidget("weeklystreak", "Weekly Streak")}
+                className="btn-press"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add your first widget
+              </Button>
             </div>
-          </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

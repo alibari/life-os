@@ -215,6 +215,16 @@ export default function Auth() {
             Your dashboard, widgets, and settings sync across devices
           </p>
         </div>
+
+        {/* Version Badge */}
+        <div className="mt-8 flex justify-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-border">
+            <div className="w-1.5 h-1.5 rounded-full bg-growth animate-pulse" />
+            <span className="font-mono text-[10px] text-muted-foreground tracking-wider">
+              v1.0.0 // ACTIVE
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );
