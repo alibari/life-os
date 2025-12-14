@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Gauge,
-  Swords,
+  Waves,
   FlaskConical,
   Star,
   User,
@@ -26,7 +26,7 @@ interface TheBladeProps {
 
 const navItems = [
   { icon: Gauge, label: "COCKPIT", path: "/dashboard", description: "Dashboard" },
-  { icon: Swords, label: "WAR ROOM", path: "/war-room", description: "Deep Work" },
+  { icon: Waves, label: "FLOW STATE", path: "/flow-state", description: "Deep Focus" },
   { icon: FlaskConical, label: "THE LAB", path: "/lab", description: "Bio-Data" },
   { icon: Star, label: "NORTH STAR", path: "/north-star", description: "Goals" },
   { icon: User, label: "THE MIRROR", path: "/mirror", description: "Social/Aura" },
