@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
+import { FastForward } from "lucide-react";
 
 interface VisualAnchorProps {
   onComplete: () => void;
@@ -12,6 +13,7 @@ export function VisualAnchor({ onComplete, onCancel }: VisualAnchorProps) {
   const [isHolding, setIsHolding] = useState(false);
   const [progress, setProgress] = useState(0);
   const [failed, setFailed] = useState(false);
+  const [showBypass, setShowBypass] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -20,6 +22,7 @@ export function VisualAnchor({ onComplete, onCancel }: VisualAnchorProps) {
       setFailed(true);
       setIsHolding(false);
       setProgress(0);
+      setShowBypass(true);
       setTimeout(() => setFailed(false), 2000);
     }
   }, [isHolding, progress]);
@@ -31,6 +34,9 @@ export function VisualAnchor({ onComplete, onCancel }: VisualAnchorProps) {
         setIsHolding(true);
         setFailed(false);
       }
+      if (e.code === "Escape") {
+        onCancel();
+      }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -38,6 +44,7 @@ export function VisualAnchor({ onComplete, onCancel }: VisualAnchorProps) {
         e.preventDefault();
         if (progress < 100) {
           setFailed(true);
+          setShowBypass(true);
           setTimeout(() => setFailed(false), 2000);
         }
         setIsHolding(false);
@@ -52,7 +59,7 @@ export function VisualAnchor({ onComplete, onCancel }: VisualAnchorProps) {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [progress]);
+  }, [progress, onCancel]);
 
   useEffect(() => {
     if (isHolding) {
@@ -75,6 +82,10 @@ export function VisualAnchor({ onComplete, onCancel }: VisualAnchorProps) {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [isHolding, onComplete]);
+
+  const handleBypass = () => {
+    onComplete();
+  };
 
   return (
     <div
@@ -142,11 +153,22 @@ export function VisualAnchor({ onComplete, onCancel }: VisualAnchorProps) {
       </div>
 
       {/* Progress indicator */}
-      <div className="absolute bottom-12 left-1/2 -translate-x-1/2">
+      <div className="absolute bottom-24 left-1/2 -translate-x-1/2">
         <p className="font-mono text-2xl text-foreground/30">
           {Math.floor(progress * ANCHOR_DURATION / 100)}s / {ANCHOR_DURATION}s
         </p>
       </div>
+
+      {/* Bypass Option - appears after a fail */}
+      {showBypass && (
+        <button
+          onClick={handleBypass}
+          className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-muted/10 border border-muted/20 rounded-lg text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/20 transition-all font-mono text-xs"
+        >
+          <FastForward className="h-3 w-3" />
+          Skip Protocol
+        </button>
+      )}
 
       {/* Cancel button */}
       <button
