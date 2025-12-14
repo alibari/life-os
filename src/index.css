@@ -119,6 +119,30 @@
   .text-catabolic {
     color: hsl(var(--destructive));
   }
+
+  .text-focus {
+    color: hsl(var(--secondary));
+  }
+
+  .text-growth {
+    color: hsl(var(--growth));
+  }
+
+  .text-warning {
+    color: hsl(var(--warning));
+  }
+
+  .bg-focus {
+    background-color: hsl(var(--secondary));
+  }
+
+  .bg-growth {
+    background-color: hsl(var(--growth));
+  }
+
+  .bg-warning {
+    background-color: hsl(var(--warning));
+  }
   
   .bg-anabolic {
     background-color: hsl(var(--anabolic));
@@ -188,11 +212,74 @@
   border-radius: 0 0 2px 0;
 }
 
+/* Southwest handle (corner) */
+.react-grid-item > .react-resizable-handle-sw {
+  width: 20px !important;
+  height: 20px !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  cursor: sw-resize !important;
+}
+
+.react-grid-item > .react-resizable-handle-sw::after {
+  content: '';
+  position: absolute;
+  width: 10px !important;
+  height: 10px !important;
+  left: 4px !important;
+  bottom: 4px !important;
+  border-left: 2px solid hsl(var(--primary) / 0.6) !important;
+  border-bottom: 2px solid hsl(var(--primary) / 0.6) !important;
+  border-radius: 0 0 0 2px;
+}
+
+/* Northeast handle (corner) */
+.react-grid-item > .react-resizable-handle-ne {
+  width: 20px !important;
+  height: 20px !important;
+  top: 0 !important;
+  right: 0 !important;
+  cursor: ne-resize !important;
+}
+
+.react-grid-item > .react-resizable-handle-ne::after {
+  content: '';
+  position: absolute;
+  width: 10px !important;
+  height: 10px !important;
+  right: 4px !important;
+  top: 4px !important;
+  border-right: 2px solid hsl(var(--primary) / 0.6) !important;
+  border-top: 2px solid hsl(var(--primary) / 0.6) !important;
+  border-radius: 0 2px 0 0;
+}
+
+/* Northwest handle (corner) */
+.react-grid-item > .react-resizable-handle-nw {
+  width: 20px !important;
+  height: 20px !important;
+  top: 0 !important;
+  left: 0 !important;
+  cursor: nw-resize !important;
+}
+
+.react-grid-item > .react-resizable-handle-nw::after {
+  content: '';
+  position: absolute;
+  width: 10px !important;
+  height: 10px !important;
+  left: 4px !important;
+  top: 4px !important;
+  border-left: 2px solid hsl(var(--primary) / 0.6) !important;
+  border-top: 2px solid hsl(var(--primary) / 0.6) !important;
+  border-radius: 2px 0 0 0;
+}
+
 /* East handle (right edge for width) */
 .react-grid-item > .react-resizable-handle-e {
   width: 12px !important;
-  height: 100% !important;
-  top: 0 !important;
+  height: calc(100% - 40px) !important;
+  top: 20px !important;
   right: -6px !important;
   cursor: e-resize !important;
 }
@@ -209,12 +296,33 @@
   border-radius: 2px;
 }
 
+/* West handle (left edge for width) */
+.react-grid-item > .react-resizable-handle-w {
+  width: 12px !important;
+  height: calc(100% - 40px) !important;
+  top: 20px !important;
+  left: -6px !important;
+  cursor: w-resize !important;
+}
+
+.react-grid-item > .react-resizable-handle-w::after {
+  content: '';
+  position: absolute;
+  width: 4px !important;
+  height: 40px !important;
+  left: 4px !important;
+  top: 50% !important;
+  transform: translateY(-50%);
+  background: hsl(var(--primary) / 0.5) !important;
+  border-radius: 2px;
+}
+
 /* South handle (bottom edge for height) */
 .react-grid-item > .react-resizable-handle-s {
-  width: 100% !important;
+  width: calc(100% - 40px) !important;
   height: 12px !important;
   bottom: -6px !important;
-  left: 0 !important;
+  left: 20px !important;
   cursor: s-resize !important;
 }
 
@@ -224,6 +332,27 @@
   width: 40px !important;
   height: 4px !important;
   bottom: 4px !important;
+  left: 50% !important;
+  transform: translateX(-50%);
+  background: hsl(var(--primary) / 0.5) !important;
+  border-radius: 2px;
+}
+
+/* North handle (top edge for height) */
+.react-grid-item > .react-resizable-handle-n {
+  width: calc(100% - 40px) !important;
+  height: 12px !important;
+  top: -6px !important;
+  left: 20px !important;
+  cursor: n-resize !important;
+}
+
+.react-grid-item > .react-resizable-handle-n::after {
+  content: '';
+  position: absolute;
+  width: 40px !important;
+  height: 4px !important;
+  top: 4px !important;
   left: 50% !important;
   transform: translateX(-50%);
   background: hsl(var(--primary) / 0.5) !important;
@@ -252,4 +381,34 @@
   background-image: 
     radial-gradient(circle at 1px 1px, hsl(var(--border) / 0.5) 1px, transparent 0);
   background-size: 28px 28px;
+}
+
+/* Responsive widget content */
+.widget-content-responsive {
+  @apply flex flex-col h-full;
+}
+
+.widget-content-responsive .widget-header {
+  @apply flex-shrink-0;
+}
+
+.widget-content-responsive .widget-body {
+  @apply flex-1 min-h-0 overflow-auto;
+}
+
+/* Compact widget adjustments */
+.widget-compact .widget-title {
+  @apply text-xs;
+}
+
+.widget-compact .widget-value {
+  @apply text-lg;
+}
+
+.widget-expanded .widget-title {
+  @apply text-sm;
+}
+
+.widget-expanded .widget-value {
+  @apply text-3xl;
 }

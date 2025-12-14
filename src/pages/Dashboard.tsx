@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ComponentType } from "react";
 import RGL from "react-grid-layout";
-import { Plus, GripVertical, X, LogOut } from "lucide-react";
+import { Plus, GripVertical, X, LogOut, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReadinessArc } from "@/components/cockpit/ReadinessArc";
@@ -46,7 +46,7 @@ interface WidgetConfig {
   title: string;
 }
 
-const widgetComponents: Record<string, React.FC> = {
+const widgetComponents: Record<string, React.FC<{ compact?: boolean }>> = {
   readiness: ReadinessArc,
   circadian: CircadianClock,
   voltage: TReadyScore,
@@ -115,15 +115,19 @@ export default function Dashboard() {
   });
 
   const handleLayoutChange = (newLayout: LayoutItem[]) => {
-    const updatedLayout = newLayout.map((item) => {
-      const existing = layouts.find((l) => l.i === item.i);
-      return {
-        ...item,
-        minW: existing?.minW ?? 1,
-        maxW: existing?.maxW ?? 6,
-        minH: existing?.minH ?? 2,
-        maxH: existing?.maxH ?? 6,
-      };
+    // Merge changes with existing layouts
+    const updatedLayout = layouts.map((existing) => {
+      const changed = newLayout.find((l) => l.i === existing.i);
+      if (changed) {
+        return {
+          ...changed,
+          minW: existing.minW ?? 1,
+          maxW: existing.maxW ?? 6,
+          minH: existing.minH ?? 1,
+          maxH: existing.maxH ?? 8,
+        };
+      }
+      return existing;
     });
     updateLayouts(updatedLayout);
   };
@@ -134,14 +138,14 @@ export default function Dashboard() {
     
     const maxY = layouts.reduce((max, l) => Math.max(max, l.y + l.h), 0);
     
-    const widgetSizes: Record<string, { w: number; h: number; minW: number }> = {
-      yeartracker: { w: 6, h: 3, minW: 4 },
-      graph: { w: 4, h: 3, minW: 2 },
-      biohack: { w: 2, h: 3, minW: 2 },
-      aisummary: { w: 2, h: 3, minW: 2 },
+    const widgetSizes: Record<string, { w: number; h: number; minW: number; minH: number }> = {
+      yeartracker: { w: 6, h: 3, minW: 3, minH: 2 },
+      graph: { w: 4, h: 3, minW: 2, minH: 2 },
+      biohack: { w: 2, h: 3, minW: 1, minH: 2 },
+      aisummary: { w: 2, h: 3, minW: 1, minH: 2 },
     };
     
-    const size = widgetSizes[type] || { w: 2, h: 2, minW: 1 };
+    const size = widgetSizes[type] || { w: 2, h: 2, minW: 1, minH: 1 };
     
     const newLayout: LayoutItem = { 
       i: newId, 
@@ -151,8 +155,8 @@ export default function Dashboard() {
       h: size.h, 
       minW: size.minW, 
       maxW: 6, 
-      minH: 2, 
-      maxH: 6 
+      minH: size.minH, 
+      maxH: 8 
     };
     
     const newWidgets = [...widgets, newWidget];
@@ -174,7 +178,7 @@ export default function Dashboard() {
     updateLayouts(newLayouts);
   };
 
-  // Filter widgets by active tab
+  // Filter widgets by active tab (for display only)
   const filteredWidgets = widgets.filter((widget) => {
     if (activeTab === "all") return true;
     return widgetCategories[activeTab]?.includes(widget.type);
@@ -186,6 +190,18 @@ export default function Dashboard() {
     if (activeTab === "all") return true;
     return widgetCategories[activeTab]?.includes(widget.type);
   });
+
+  // Get widget dimensions for responsive content
+  const getWidgetDimensions = (widgetId: string) => {
+    const layout = layouts.find((l) => l.i === widgetId);
+    return {
+      w: layout?.w ?? 2,
+      h: layout?.h ?? 2,
+      isCompact: (layout?.w ?? 2) <= 2 && (layout?.h ?? 2) <= 2,
+      isWide: (layout?.w ?? 2) >= 4,
+      isTall: (layout?.h ?? 2) >= 3,
+    };
+  };
 
   if (loading) {
     return (
@@ -216,7 +232,7 @@ export default function Dashboard() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="btn-press gap-2 border-primary/30 hover:border-primary/60">
                 <Plus className="h-4 w-4 text-primary" />
-                <span>Add Widget</span>
+                <span className="hidden sm:inline">Add Widget</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="border-border bg-card/95 backdrop-blur-xl">
@@ -248,34 +264,34 @@ export default function Dashboard() {
       {/* Tabs */}
       <div className="mb-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="bg-card/50 backdrop-blur-sm border border-border/50 p-1">
+          <TabsList className="bg-card/50 backdrop-blur-sm border border-border/50 p-1 gap-1">
             <TabsTrigger 
               value="all" 
-              className="font-mono text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+              className="font-mono text-xs px-4 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md"
             >
               Overview
             </TabsTrigger>
             <TabsTrigger 
               value="readiness" 
-              className="font-mono text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+              className="font-mono text-xs px-4 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md"
             >
               Readiness
             </TabsTrigger>
             <TabsTrigger 
               value="neuro" 
-              className="font-mono text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+              className="font-mono text-xs px-4 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md"
             >
               Neuro
             </TabsTrigger>
             <TabsTrigger 
               value="health" 
-              className="font-mono text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+              className="font-mono text-xs px-4 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md"
             >
               Health
             </TabsTrigger>
             <TabsTrigger 
               value="analytics" 
-              className="font-mono text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+              className="font-mono text-xs px-4 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md"
             >
               Analytics
             </TabsTrigger>
@@ -289,42 +305,46 @@ export default function Dashboard() {
           className="layout"
           layout={filteredLayouts}
           cols={6}
-          rowHeight={160}
+          rowHeight={140}
           width={containerWidth - 48}
-          onLayoutChange={(newLayout: LayoutItem[]) => {
-            if (activeTab === "all") {
-              handleLayoutChange(newLayout);
-            }
-          }}
+          onLayoutChange={handleLayoutChange}
           draggableHandle=".drag-handle"
-          margin={[12, 12]}
+          margin={[16, 16]}
           containerPadding={[0, 0]}
-          isResizable={activeTab === "all"}
-          isDraggable={activeTab === "all"}
-          resizeHandles={["s", "e", "se"]}
+          isResizable={true}
+          isDraggable={true}
+          resizeHandles={["s", "e", "se", "sw", "n", "w", "nw", "ne"]}
         >
           {filteredWidgets.map((widget) => {
             const WidgetComponent = widgetComponents[widget.type];
+            const dims = getWidgetDimensions(widget.id);
             return (
               <div key={widget.id} className="relative group">
-                {/* Drag Handle & Controls */}
-                <div className="absolute top-2 right-2 z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* Enhanced Widget Controls */}
+                <div className="absolute top-2 right-2 z-20 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
                   <button
-                    className="drag-handle p-1.5 rounded bg-card/80 backdrop-blur-sm border border-border hover:bg-muted cursor-grab active:cursor-grabbing"
+                    className="drag-handle p-1.5 rounded-md bg-background/90 backdrop-blur-sm border border-border/80 hover:border-primary/50 hover:bg-primary/10 cursor-grab active:cursor-grabbing transition-all shadow-sm"
+                    title="Drag to move"
                   >
-                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+                    <GripVertical className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
                   </button>
                   <button
                     onClick={() => removeWidget(widget.id)}
-                    className="p-1.5 rounded bg-card/80 backdrop-blur-sm border border-border hover:bg-destructive/20 hover:border-destructive/50"
+                    className="p-1.5 rounded-md bg-background/90 backdrop-blur-sm border border-border/80 hover:bg-destructive/20 hover:border-destructive/50 transition-all shadow-sm"
+                    title="Remove widget"
                   >
-                    <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                    <X className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
                   </button>
+                </div>
+
+                {/* Resize Hint */}
+                <div className="absolute bottom-2 right-2 z-10 opacity-0 group-hover:opacity-50 transition-opacity pointer-events-none">
+                  <Maximize2 className="h-3 w-3 text-primary rotate-90" />
                 </div>
 
                 {/* Widget Content */}
                 <div className="h-full overflow-hidden">
-                  <WidgetComponent />
+                  <WidgetComponent compact={dims.isCompact} />
                 </div>
               </div>
             );
