@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { Volume2, VolumeX, Waves } from "lucide-react";
+import { Volume2, VolumeX, Waves, Settings2 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 type NoiseLevel = 0 | 1 | 2 | 3;
@@ -9,11 +10,11 @@ interface NeuralTuneProps {
   isPlaying?: boolean;
 }
 
-const NOISE_CONFIGS: Record<NoiseLevel, { label: string; description: string; color: string }> = {
-  0: { label: "OFF", description: "Silent mode", color: "muted-foreground" },
-  1: { label: "PINK NOISE", description: "Environment masking", color: "growth" },
-  2: { label: "40Hz GAMMA", description: "High-intensity focus", color: "focus" },
-  3: { label: "10Hz ALPHA", description: "Creative flow state", color: "warning" },
+const NOISE_CONFIGS: Record<NoiseLevel, { label: string; shortLabel: string; color: string }> = {
+  0: { label: "OFF", shortLabel: "OFF", color: "muted-foreground" },
+  1: { label: "PINK", shortLabel: "PNK", color: "growth" },
+  2: { label: "40Hz γ", shortLabel: "40γ", color: "focus" },
+  3: { label: "10Hz α", shortLabel: "10α", color: "warning" },
 };
 
 export function NeuralTune({ isPlaying = false }: NeuralTuneProps) {
@@ -29,7 +30,6 @@ export function NeuralTune({ isPlaying = false }: NeuralTuneProps) {
 
   const config = NOISE_CONFIGS[level];
 
-  // Create pink noise buffer
   const createPinkNoiseBuffer = (audioContext: AudioContext) => {
     const bufferSize = 2 * audioContext.sampleRate;
     const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
@@ -54,14 +54,10 @@ export function NeuralTune({ isPlaying = false }: NeuralTuneProps) {
 
   const stopAllAudio = () => {
     if (nodesRef.current.pinkNoise) {
-      try {
-        nodesRef.current.pinkNoise.stop();
-      } catch (e) {}
+      try { nodesRef.current.pinkNoise.stop(); } catch (e) {}
     }
     if (nodesRef.current.oscillator) {
-      try {
-        nodesRef.current.oscillator.stop();
-      } catch (e) {}
+      try { nodesRef.current.oscillator.stop(); } catch (e) {}
     }
     if (nodesRef.current.gainNode) {
       nodesRef.current.gainNode.disconnect();
@@ -88,7 +84,6 @@ export function NeuralTune({ isPlaying = false }: NeuralTuneProps) {
     gainNode.connect(audioContext.destination);
     nodesRef.current.gainNode = gainNode;
 
-    // Pink noise for all levels
     const pinkBuffer = createPinkNoiseBuffer(audioContext);
     const pinkSource = audioContext.createBufferSource();
     pinkSource.buffer = pinkBuffer;
@@ -97,9 +92,8 @@ export function NeuralTune({ isPlaying = false }: NeuralTuneProps) {
     pinkSource.start();
     nodesRef.current.pinkNoise = pinkSource;
 
-    // Add binaural beats for levels 2 and 3
     if (level >= 2) {
-      const frequency = level === 2 ? 40 : 10; // 40Hz gamma or 10Hz alpha
+      const frequency = level === 2 ? 40 : 10;
       const oscillator = audioContext.createOscillator();
       oscillator.type = "sine";
       oscillator.frequency.value = frequency;
@@ -115,7 +109,6 @@ export function NeuralTune({ isPlaying = false }: NeuralTuneProps) {
     setIsAudioPlaying(true);
   };
 
-  // Update audio when level or volume changes
   useEffect(() => {
     if (isPlaying && level > 0) {
       playAudio();
@@ -129,7 +122,6 @@ export function NeuralTune({ isPlaying = false }: NeuralTuneProps) {
     };
   }, [level, isPlaying]);
 
-  // Update volume in real-time
   useEffect(() => {
     if (nodesRef.current.gainNode) {
       nodesRef.current.gainNode.gain.value = volume / 100 * 0.3;
@@ -137,83 +129,89 @@ export function NeuralTune({ isPlaying = false }: NeuralTuneProps) {
   }, [volume]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Waves className={cn(
-            "h-4 w-4",
-            isAudioPlaying ? `text-${config.color}` : "text-muted-foreground"
-          )} />
-          <span className="font-mono text-xs text-muted-foreground uppercase tracking-wider">
-            Neural Tune
-          </span>
-        </div>
-        {isAudioPlaying && (
-          <div className="flex items-center gap-1">
-            {[...Array(3)].map((_, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "w-0.5 rounded-full animate-pulse",
-                  `bg-${config.color}`,
-                  i === 0 && "h-2",
-                  i === 1 && "h-3",
-                  i === 2 && "h-2",
-                )}
-                style={{ animationDelay: `${i * 0.1}s` }}
-              />
-            ))}
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          className={cn(
+            "relative flex items-center justify-center w-10 h-10 rounded-lg border transition-all",
+            isAudioPlaying 
+              ? "border-focus bg-focus/10 text-focus" 
+              : "border-border bg-background/50 text-muted-foreground hover:border-muted-foreground"
+          )}
+        >
+          <Waves className="h-4 w-4" />
+          {isAudioPlaying && (
+            <div className="absolute -top-1 -right-1 flex items-center justify-center">
+              <span className={cn(
+                "w-2 h-2 rounded-full animate-pulse",
+                level === 1 && "bg-growth",
+                level === 2 && "bg-focus",
+                level === 3 && "bg-warning"
+              )} />
+            </div>
+          )}
+          {level > 0 && (
+            <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 font-mono text-[8px] font-bold">
+              {config.shortLabel}
+            </span>
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="center" className="w-56 p-3 bg-card border-border">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-xs text-muted-foreground uppercase tracking-wider">
+              Neural Tune
+            </span>
+            <Settings2 className="h-3 w-3 text-muted-foreground" />
           </div>
-        )}
-      </div>
+          
+          {/* Level selector */}
+          <div className="grid grid-cols-4 gap-1">
+            {([0, 1, 2, 3] as NoiseLevel[]).map((lvl) => {
+              const cfg = NOISE_CONFIGS[lvl];
+              return (
+                <button
+                  key={lvl}
+                  onClick={() => setLevel(lvl)}
+                  className={cn(
+                    "p-1.5 rounded border transition-all font-mono text-[10px]",
+                    level === lvl
+                      ? "border-focus bg-focus/10 text-focus"
+                      : "border-border bg-background/50 text-muted-foreground hover:border-muted-foreground"
+                  )}
+                >
+                  {lvl === 0 ? <VolumeX className="h-3 w-3 mx-auto" /> : cfg.shortLabel}
+                </button>
+              );
+            })}
+          </div>
 
-      {/* Level selector */}
-      <div className="grid grid-cols-4 gap-1">
-        {([0, 1, 2, 3] as NoiseLevel[]).map((lvl) => {
-          const cfg = NOISE_CONFIGS[lvl];
-          return (
-            <button
-              key={lvl}
-              onClick={() => setLevel(lvl)}
-              className={cn(
-                "p-2 rounded-lg border transition-all font-mono text-xs",
-                level === lvl
-                  ? "border-focus bg-focus/10 text-focus"
-                  : "border-border bg-background/50 text-muted-foreground hover:border-muted-foreground"
-              )}
-            >
-              {lvl === 0 ? <VolumeX className="h-3 w-3 mx-auto" /> : lvl}
-            </button>
-          );
-        })}
-      </div>
+          {/* Current level */}
+          <div className="text-center py-1">
+            <p className={cn("font-mono text-xs font-medium", `text-${config.color}`)}>
+              {config.label}
+            </p>
+          </div>
 
-      {/* Current level info */}
-      <div className="text-center">
-        <p className={cn("font-mono text-xs", `text-${config.color}`)}>
-          {config.label}
-        </p>
-        <p className="font-mono text-xs text-muted-foreground/50">
-          {config.description}
-        </p>
-      </div>
-
-      {/* Volume slider */}
-      {level > 0 && (
-        <div className="flex items-center gap-3">
-          <Volume2 className="h-3 w-3 text-muted-foreground" />
-          <Slider
-            value={[volume]}
-            onValueChange={([v]) => setVolume(v)}
-            max={100}
-            step={1}
-            className="flex-1"
-          />
-          <span className="font-mono text-xs text-muted-foreground w-8">
-            {volume}%
-          </span>
+          {/* Volume */}
+          {level > 0 && (
+            <div className="flex items-center gap-2 pt-1 border-t border-border">
+              <Volume2 className="h-3 w-3 text-muted-foreground shrink-0" />
+              <Slider
+                value={[volume]}
+                onValueChange={([v]) => setVolume(v)}
+                max={100}
+                step={1}
+                className="flex-1"
+              />
+              <span className="font-mono text-[10px] text-muted-foreground w-6 text-right">
+                {volume}
+              </span>
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }

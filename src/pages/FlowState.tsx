@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Play, Pause, RotateCcw, Target, Clock, Zap, Brain } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Play, Pause, RotateCcw, Target, Clock, Zap, Brain, Eye, Sparkles, Activity, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { VisualAnchor } from "@/components/flowstate/VisualAnchor";
@@ -9,8 +9,8 @@ import { NeuralTune } from "@/components/flowstate/NeuralTune";
 import { RefractionBreak } from "@/components/flowstate/RefractionBreak";
 import { EffortMonitor } from "@/components/flowstate/EffortMonitor";
 
-const ULTRADIAN_DURATION = 90 * 60; // 90 minutes
-const BREAK_DURATION = 20 * 60; // 20 minutes
+const ULTRADIAN_DURATION = 90 * 60;
+const BREAK_DURATION = 20 * 60;
 
 type SessionPhase = "idle" | "anchor" | "focus" | "effort" | "refraction" | "break" | "complete";
 
@@ -24,6 +24,13 @@ interface Session {
   notes?: string;
   capturedThoughts: string[];
 }
+
+const PROTOCOL_STEPS = [
+  { icon: Eye, label: "Visual Anchor", desc: "Prime nervous system", color: "warning" },
+  { icon: Activity, label: "Friction Zone", desc: "15min norepinephrine load", color: "warning" },
+  { icon: Sparkles, label: "Flow Tunnel", desc: "Peak focus 15-75min", color: "focus" },
+  { icon: Timer, label: "Decline", desc: "Wrap up 75-90min", color: "destructive" },
+];
 
 export default function FlowState() {
   const [phase, setPhase] = useState<SessionPhase>("idle");
@@ -39,17 +46,15 @@ export default function FlowState() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const today = new Date().toLocaleDateString("en-US", {
-    weekday: "long",
+    weekday: "short",
     month: "short",
     day: "numeric",
   });
 
-  // Persist sessions
   useEffect(() => {
     localStorage.setItem("flowstate-sessions", JSON.stringify(sessions));
   }, [sessions]);
 
-  // Timer logic
   useEffect(() => {
     if (isRunning && timeRemaining > 0) {
       intervalRef.current = setInterval(() => {
@@ -145,7 +150,17 @@ export default function FlowState() {
     ? todaySessions.filter(s => s.rpe).reduce((acc, s) => acc + (s.rpe || 0), 0) / todaySessions.filter(s => s.rpe).length
     : null;
 
-  // Render overlays
+  // Get current zone based on elapsed time
+  const elapsedTime = ULTRADIAN_DURATION - timeRemaining;
+  const elapsedMinutes = Math.floor(elapsedTime / 60);
+  const getCurrentZone = () => {
+    if (phase !== "focus") return null;
+    if (elapsedMinutes < 15) return 0;
+    if (elapsedMinutes < 75) return 1;
+    return 2;
+  };
+  const currentZone = getCurrentZone();
+
   if (phase === "anchor") {
     return <VisualAnchor onComplete={handleAnchorComplete} onCancel={handleAnchorCancel} />;
   }
@@ -165,268 +180,264 @@ export default function FlowState() {
   }
 
   return (
-    <div className="min-h-screen p-6">
-      {/* Header */}
-      <header className="mb-8">
-        <p className="font-mono text-xs text-muted-foreground tracking-wider">
-          {today.toUpperCase()}
-        </p>
-        <div className="flex items-center gap-3 mt-1">
-          <Brain className="h-6 w-6 text-focus" />
-          <h1 className="font-mono text-2xl font-bold text-foreground">
-            FLOW STATE
-          </h1>
+    <div className="min-h-screen p-4 md:p-6">
+      {/* Compact Header */}
+      <header className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-focus/10 border border-focus/20">
+            <Brain className="h-5 w-5 text-focus" />
+          </div>
+          <div>
+            <h1 className="font-mono text-lg font-bold text-foreground tracking-tight">
+              FLOW STATE
+            </h1>
+            <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
+              {today} • 90-MIN PROTOCOL
+            </p>
+          </div>
         </div>
-        <p className="text-sm text-muted-foreground mt-1">
-          90-minute ultradian focus protocol with neuroscience-backed rituals
-        </p>
+        
+        {/* Quick Stats */}
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="font-mono text-xs text-muted-foreground">Today</p>
+            <p className="font-mono text-sm font-bold text-foreground">
+              {todaySessions.length} <span className="text-muted-foreground font-normal">sessions</span>
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="font-mono text-xs text-muted-foreground">Focus</p>
+            <p className="font-mono text-sm font-bold text-growth">
+              {Math.floor(totalFocusToday / 60)}h {totalFocusToday % 60}m
+            </p>
+          </div>
+          {avgRPE !== null && (
+            <div className="text-right">
+              <p className="font-mono text-xs text-muted-foreground">RPE</p>
+              <p className={cn(
+                "font-mono text-sm font-bold",
+                avgRPE <= 4 && "text-growth",
+                avgRPE > 4 && avgRPE <= 7 && "text-warning",
+                avgRPE > 7 && "text-destructive"
+              )}>
+                {avgRPE.toFixed(1)}
+              </p>
+            </div>
+          )}
+        </div>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Timer */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="card-surface p-8">
-            {/* Phase Indicator */}
-            <div className="flex items-center justify-center gap-2 mb-6">
-              <div
-                className={cn(
-                  "w-2 h-2 rounded-full",
-                  phase === "focus" && "bg-focus animate-pulse",
-                  phase === "break" && "bg-growth animate-pulse",
-                  phase === "idle" && "bg-muted-foreground",
-                  phase === "complete" && "bg-growth"
-                )}
-              />
-              <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-                {phase === "idle" && "Ready to initiate"}
-                {phase === "focus" && "Deep focus active"}
-                {phase === "break" && "Recovery phase"}
-                {phase === "complete" && "Protocol complete"}
-              </span>
-            </div>
-
-            {/* Ultradian Arc Timer */}
-            <div className="flex items-center justify-center mb-8">
-              <UltradianArc
-                timeRemaining={timeRemaining}
-                totalDuration={phase === "break" ? BREAK_DURATION : ULTRADIAN_DURATION}
-                isBreak={phase === "break"}
-              />
-            </div>
-
-            {/* Mission Input */}
-            {phase === "idle" && (
-              <div className="mb-6">
-                <label className="block font-mono text-xs text-muted-foreground mb-2 uppercase tracking-wider">
-                  Session Intent
-                </label>
-                <input
-                  type="text"
-                  value={currentMission}
-                  onChange={(e) => setCurrentMission(e.target.value)}
-                  placeholder="What will you accomplish in this 90-minute block?"
-                  className="w-full bg-background border border-border rounded-lg px-4 py-3 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-focus/50"
-                />
-              </div>
-            )}
-
-            {/* Current Mission Display */}
-            {phase !== "idle" && currentMission && (
-              <div className="mb-6 p-4 bg-background/50 rounded-lg border border-border">
-                <div className="flex items-center gap-2 mb-1">
-                  <Target className="h-4 w-4 text-focus" />
-                  <span className="font-mono text-xs text-muted-foreground uppercase">
-                    Session Intent
+      <div className="grid gap-4 lg:grid-cols-12">
+        {/* Main Timer Section */}
+        <div className="lg:col-span-8 space-y-4">
+          {/* Timer Card */}
+          <div className="card-surface p-6">
+            <div className="flex flex-col items-center">
+              {/* Phase & Controls Row */}
+              <div className="w-full flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      "w-2 h-2 rounded-full",
+                      phase === "focus" && "bg-focus animate-pulse",
+                      phase === "break" && "bg-growth animate-pulse",
+                      phase === "idle" && "bg-muted-foreground",
+                      phase === "complete" && "bg-growth"
+                    )}
+                  />
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                    {phase === "idle" && "Ready"}
+                    {phase === "focus" && (currentZone === 0 ? "Friction Zone" : currentZone === 1 ? "Flow Tunnel" : "Decline Phase")}
+                    {phase === "break" && "Recovery"}
+                    {phase === "complete" && "Complete"}
                   </span>
                 </div>
-                <p className="font-mono text-sm text-foreground">{currentMission}</p>
+                
+                {/* Audio Control */}
+                <NeuralTune isPlaying={phase === "focus" && isRunning} />
               </div>
-            )}
 
-            {/* Zeigarnik Dump - only during focus */}
-            {phase === "focus" && (
-              <div className="mb-6">
-                <ZeigarnikDump onCapture={handleCapture} />
+              {/* Arc Timer */}
+              <div className="relative mb-6">
+                <UltradianArc
+                  timeRemaining={timeRemaining}
+                  totalDuration={phase === "break" ? BREAK_DURATION : ULTRADIAN_DURATION}
+                  isBreak={phase === "break"}
+                />
               </div>
-            )}
 
-            {/* Controls */}
-            <div className="flex items-center justify-center gap-4">
+              {/* Mission Input / Display */}
               {phase === "idle" ? (
-                <Button
-                  onClick={startSession}
-                  size="lg"
-                  className="btn-press gap-2 bg-focus hover:bg-focus/90 text-foreground font-mono"
-                >
-                  <Zap className="h-5 w-5" />
-                  INITIATE
-                </Button>
-              ) : phase !== "complete" ? (
-                <>
+                <div className="w-full max-w-md mb-4">
+                  <input
+                    type="text"
+                    value={currentMission}
+                    onChange={(e) => setCurrentMission(e.target.value)}
+                    placeholder="What's your focus for this session?"
+                    className="w-full bg-background border border-border rounded-lg px-4 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-focus/50 text-center"
+                  />
+                </div>
+              ) : currentMission && (
+                <div className="flex items-center gap-2 mb-4 px-4 py-2 bg-background/50 rounded-lg border border-border">
+                  <Target className="h-3 w-3 text-focus shrink-0" />
+                  <p className="font-mono text-xs text-foreground truncate">{currentMission}</p>
+                </div>
+              )}
+
+              {/* Controls */}
+              <div className="flex items-center gap-3">
+                {phase === "idle" ? (
                   <Button
-                    onClick={toggleTimer}
+                    onClick={startSession}
                     size="lg"
-                    variant="outline"
-                    className="btn-press gap-2 font-mono"
+                    className="btn-press gap-2 bg-focus hover:bg-focus/90 text-white font-mono px-8"
                   >
-                    {isRunning ? (
-                      <>
-                        <Pause className="h-5 w-5" />
-                        PAUSE
-                      </>
-                    ) : (
-                      <>
-                        <Play className="h-5 w-5" />
-                        RESUME
-                      </>
-                    )}
+                    <Zap className="h-4 w-4" />
+                    INITIATE
                   </Button>
+                ) : phase !== "complete" ? (
+                  <>
+                    <Button
+                      onClick={toggleTimer}
+                      size="default"
+                      variant="outline"
+                      className="btn-press gap-2 font-mono"
+                    >
+                      {isRunning ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                      {isRunning ? "PAUSE" : "RESUME"}
+                    </Button>
+                    <Button
+                      onClick={resetTimer}
+                      size="default"
+                      variant="ghost"
+                      className="btn-press gap-2 font-mono text-muted-foreground"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : (
                   <Button
                     onClick={resetTimer}
                     size="lg"
-                    variant="ghost"
-                    className="btn-press gap-2 font-mono text-muted-foreground"
+                    className="btn-press gap-2 bg-growth hover:bg-growth/90 text-white font-mono px-8"
                   >
-                    <RotateCcw className="h-5 w-5" />
-                    ABORT
+                    <Zap className="h-4 w-4" />
+                    NEW SESSION
                   </Button>
-                </>
-              ) : (
-                <Button
-                  onClick={resetTimer}
-                  size="lg"
-                  className="btn-press gap-2 bg-growth hover:bg-growth/90 text-foreground font-mono"
-                >
-                  <Zap className="h-5 w-5" />
-                  NEW SESSION
-                </Button>
-              )}
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Neural Tune */}
-          <div className="card-surface p-6">
-            <NeuralTune isPlaying={phase === "focus" && isRunning} />
-          </div>
-        </div>
-
-        {/* Stats Sidebar */}
-        <div className="space-y-6">
-          {/* Today's Stats */}
-          <div className="card-surface p-6">
-            <h3 className="font-mono text-xs text-muted-foreground uppercase tracking-wider mb-4">
-              Today's Metrics
-            </h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Target className="h-4 w-4 text-focus" />
-                  <span className="font-mono text-sm text-muted-foreground">Sessions</span>
-                </div>
-                <span className="font-mono text-xl font-bold text-foreground">
-                  {todaySessions.length}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-growth" />
-                  <span className="font-mono text-sm text-muted-foreground">Focus Time</span>
-                </div>
-                <span className="font-mono text-xl font-bold text-foreground">
-                  {Math.floor(totalFocusToday / 60)}h {totalFocusToday % 60}m
-                </span>
-              </div>
-              {avgRPE !== null && (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Brain className="h-4 w-4 text-warning" />
-                    <span className="font-mono text-sm text-muted-foreground">Avg RPE</span>
-                  </div>
-                  <span className="font-mono text-xl font-bold text-foreground">
-                    {avgRPE.toFixed(1)}
+          {/* Zeigarnik Dump - only during focus */}
+          {phase === "focus" && (
+            <div className="card-surface p-4">
+              <ZeigarnikDump onCapture={handleCapture} />
+              {capturedThoughts.length > 0 && (
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {capturedThoughts.length} thought{capturedThoughts.length > 1 ? 's' : ''} captured
                   </span>
                 </div>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar */}
+        <div className="lg:col-span-4 space-y-4">
+          {/* Protocol Steps */}
+          <div className="card-surface p-4">
+            <h3 className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Sparkles className="h-3 w-3" />
+              Protocol Phases
+            </h3>
+            <div className="space-y-2">
+              {PROTOCOL_STEPS.map((step, idx) => {
+                const Icon = step.icon;
+                const isActive = phase === "focus" && (
+                  (idx === 0 && currentZone === null) ||
+                  (idx === 1 && currentZone === 0) ||
+                  (idx === 2 && currentZone === 1) ||
+                  (idx === 3 && currentZone === 2)
+                );
+                return (
+                  <div
+                    key={idx}
+                    className={cn(
+                      "flex items-center gap-3 p-2 rounded-lg transition-all",
+                      isActive ? `bg-${step.color}/10 border border-${step.color}/30` : "opacity-50"
+                    )}
+                  >
+                    <Icon className={cn("h-4 w-4 shrink-0", isActive ? `text-${step.color}` : "text-muted-foreground")} />
+                    <div className="flex-1 min-w-0">
+                      <p className={cn("font-mono text-xs", isActive ? "text-foreground" : "text-muted-foreground")}>
+                        {step.label}
+                      </p>
+                      <p className="font-mono text-[10px] text-muted-foreground truncate">
+                        {step.desc}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
           {/* Session History */}
-          <div className="card-surface p-6">
-            <h3 className="font-mono text-xs text-muted-foreground uppercase tracking-wider mb-4">
+          <div className="card-surface p-4">
+            <h3 className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Clock className="h-3 w-3" />
               Recent Sessions
             </h3>
             {todaySessions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No sessions today</p>
+              <p className="font-mono text-xs text-muted-foreground/50">No sessions today</p>
             ) : (
-              <div className="space-y-3">
-                {todaySessions.slice(-5).reverse().map((session) => (
+              <div className="space-y-2">
+                {todaySessions.slice(-4).reverse().map((session) => (
                   <div
                     key={session.id}
-                    className="p-3 bg-background/50 rounded-lg border border-border"
+                    className="flex items-center justify-between p-2 bg-background/50 rounded-lg border border-border"
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-growth" />
-                        <span className="font-mono text-xs text-muted-foreground">
-                          {new Date(session.startTime).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      </div>
-                      <span className="font-mono text-sm text-foreground">
-                        {session.focusMinutes}m
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-growth" />
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        {new Date(session.startTime).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </span>
                     </div>
-                    {session.rpe && (
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="font-mono text-xs text-muted-foreground">RPE:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs text-foreground">
+                        {session.focusMinutes}m
+                      </span>
+                      {session.rpe && (
                         <span className={cn(
-                          "font-mono text-xs",
-                          session.rpe <= 3 && "text-growth",
-                          session.rpe > 3 && session.rpe <= 6 && "text-warning",
-                          session.rpe > 6 && "text-destructive"
+                          "font-mono text-[10px] px-1.5 py-0.5 rounded",
+                          session.rpe <= 4 && "bg-growth/20 text-growth",
+                          session.rpe > 4 && session.rpe <= 7 && "bg-warning/20 text-warning",
+                          session.rpe > 7 && "bg-destructive/20 text-destructive"
                         )}>
-                          {session.rpe}/10
+                          RPE {session.rpe}
                         </span>
-                      </div>
-                    )}
-                    {session.capturedThoughts.length > 0 && (
-                      <div className="mt-1">
-                        <span className="font-mono text-xs text-muted-foreground">
-                          {session.capturedThoughts.length} thoughts captured
-                        </span>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Protocol Guide */}
-          <div className="card-surface p-6 border-focus/30">
-            <h3 className="font-mono text-xs text-focus uppercase tracking-wider mb-3">
-              Protocol
+          {/* Tips */}
+          <div className="card-surface p-4 border-focus/20">
+            <h3 className="font-mono text-[10px] text-focus uppercase tracking-wider mb-2">
+              Pro Tip
             </h3>
-            <ul className="space-y-2 text-xs text-muted-foreground">
-              <li className="flex items-start gap-2">
-                <span className="text-warning">1.</span>
-                Visual anchor primes your nervous system
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-focus">2.</span>
-                First 15 min friction is normal (norepinephrine loading)
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-growth">3.</span>
-                Dump intrusive thoughts to clear cognitive RAM
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-focus">4.</span>
-                Panoramic vision breaks reset ciliary muscles
-              </li>
-            </ul>
+            <p className="font-mono text-[10px] text-muted-foreground leading-relaxed">
+              The first 15 minutes feel hard—that's norepinephrine loading. Don't quit. 
+              Flow starts after the friction zone.
+            </p>
           </div>
         </div>
       </div>
