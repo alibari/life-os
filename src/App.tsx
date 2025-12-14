@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Dashboard from "@/pages/Dashboard";
-import WarRoom from "@/pages/WarRoom";
+import FlowState from "@/pages/FlowState";
 import Lab from "@/pages/Lab";
 import NorthStar from "@/pages/NorthStar";
 import Mirror from "@/pages/Mirror";
@@ -26,7 +26,7 @@ const App = () => (
           <Route element={<AppLayout />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/war-room" element={<WarRoom />} />
+            <Route path="/flow-state" element={<FlowState />} />
             <Route path="/lab" element={<Lab />} />
             <Route path="/north-star" element={<NorthStar />} />
             <Route path="/mirror" element={<Mirror />} />

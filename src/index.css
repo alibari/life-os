@@ -40,6 +40,8 @@
     /* Custom semantic tokens */
     --anabolic: 160 84% 39%;
     --catabolic: 0 84% 60%;
+    --warning: 45 93% 47%;
+    --growth: 160 84% 39%;
     
     /* Sidebar */
     --sidebar-background: 0 0% 0%;

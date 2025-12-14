@@ -60,6 +60,8 @@ export default {
         anabolic: "hsl(var(--anabolic))",
         focus: "hsl(var(--secondary))",
         catabolic: "hsl(var(--catabolic))",
+        growth: "hsl(var(--primary))",
+        warning: "hsl(45 93% 47%)",
       },
       borderRadius: {
         lg: "var(--radius)",
