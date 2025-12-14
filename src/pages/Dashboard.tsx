@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, ComponentType } from "react";
 import RGL from "react-grid-layout";
-import { Plus, GripVertical, X } from "lucide-react";
+import { Plus, GripVertical, X, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReadinessArc } from "@/components/cockpit/ReadinessArc";
 import { CircadianClock } from "@/components/cockpit/CircadianClock";
 import { TReadyScore } from "@/components/cockpit/TReadyScore";
@@ -15,6 +16,8 @@ import { AdvancedGraph } from "@/components/cockpit/AdvancedGraph";
 import { YearTracker } from "@/components/cockpit/YearTracker";
 import { BiohackTracker } from "@/components/cockpit/BiohackTracker";
 import { AISummary } from "@/components/cockpit/AISummary";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserSettings } from "@/hooks/useUserSettings";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +26,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import "react-grid-layout/css/styles.css";
 
-// Cast to any to avoid type issues with react-grid-layout
 const ReactGridLayout = RGL as ComponentType<any>;
 
 interface LayoutItem {
@@ -60,49 +62,38 @@ const widgetComponents: Record<string, React.FC> = {
   aisummary: AISummary,
 };
 
+// Widget categories for tabs
+const widgetCategories: Record<string, string[]> = {
+  all: Object.keys(widgetComponents),
+  readiness: ["readiness", "circadian", "voltage", "stateswitch"],
+  neuro: ["dopamine", "pfc", "adenosine", "brain"],
+  health: ["nutrition", "biohack"],
+  analytics: ["graph", "yeartracker", "aisummary"],
+};
+
 const availableWidgets = [
-  { type: "readiness", title: "Readiness Index" },
-  { type: "circadian", title: "Circadian Rhythm" },
-  { type: "voltage", title: "System Voltage" },
-  { type: "dopamine", title: "Dopamine Delta" },
-  { type: "pfc", title: "PFC Battery" },
-  { type: "adenosine", title: "Adenosine Pressure" },
-  { type: "stateswitch", title: "State Switch" },
-  { type: "brain", title: "Brain Score" },
-  { type: "nutrition", title: "Nutrition Score" },
-  { type: "graph", title: "Performance Trend" },
-  { type: "yeartracker", title: "365 Days Tracker" },
-  { type: "biohack", title: "Biohack Tracker" },
-  { type: "aisummary", title: "AI Insights" },
+  { type: "readiness", title: "Readiness Index", category: "readiness" },
+  { type: "circadian", title: "Circadian Rhythm", category: "readiness" },
+  { type: "voltage", title: "System Voltage", category: "readiness" },
+  { type: "dopamine", title: "Dopamine Delta", category: "neuro" },
+  { type: "pfc", title: "PFC Battery", category: "neuro" },
+  { type: "adenosine", title: "Adenosine Pressure", category: "neuro" },
+  { type: "stateswitch", title: "State Switch", category: "readiness" },
+  { type: "brain", title: "Brain Score", category: "neuro" },
+  { type: "nutrition", title: "Nutrition Score", category: "health" },
+  { type: "graph", title: "Performance Trend", category: "analytics" },
+  { type: "yeartracker", title: "365 Days Tracker", category: "analytics" },
+  { type: "biohack", title: "Biohack Tracker", category: "health" },
+  { type: "aisummary", title: "AI Insights", category: "analytics" },
 ];
-
-const defaultLayouts: LayoutItem[] = [
-  { i: "readiness-1", x: 0, y: 0, w: 2, h: 2, minW: 1, maxW: 6, minH: 2, maxH: 6 },
-  { i: "circadian-1", x: 2, y: 0, w: 2, h: 2, minW: 1, maxW: 6, minH: 2, maxH: 6 },
-  { i: "voltage-1", x: 4, y: 0, w: 2, h: 2, minW: 1, maxW: 6, minH: 2, maxH: 6 },
-];
-
-const defaultWidgets: WidgetConfig[] = [
-  { id: "readiness-1", type: "readiness", title: "Readiness Index" },
-  { id: "circadian-1", type: "circadian", title: "Circadian Rhythm" },
-  { id: "voltage-1", type: "voltage", title: "System Voltage" },
-];
-
-const STORAGE_KEY_LAYOUTS = "cockpit-layouts";
-const STORAGE_KEY_WIDGETS = "cockpit-widgets";
 
 export default function Dashboard() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(1200);
+  const [activeTab, setActiveTab] = useState("all");
   
-  const [layouts, setLayouts] = useState<LayoutItem[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_LAYOUTS);
-    return saved ? JSON.parse(saved) : defaultLayouts;
-  });
-  const [widgets, setWidgets] = useState<WidgetConfig[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_WIDGETS);
-    return saved ? JSON.parse(saved) : defaultWidgets;
-  });
+  const { user, signOut } = useAuth();
+  const { layouts, widgets, loading, updateLayouts, updateWidgets, setLayouts, setWidgets } = useUserSettings();
 
   // Measure container width
   useEffect(() => {
@@ -117,15 +108,6 @@ export default function Dashboard() {
     return () => window.removeEventListener("resize", updateWidth);
   }, []);
 
-  // Persist to localStorage
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_LAYOUTS, JSON.stringify(layouts));
-  }, [layouts]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_WIDGETS, JSON.stringify(widgets));
-  }, [widgets]);
-
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     month: "short",
@@ -133,7 +115,6 @@ export default function Dashboard() {
   });
 
   const handleLayoutChange = (newLayout: LayoutItem[]) => {
-    // Preserve min/max constraints when layout changes
     const updatedLayout = newLayout.map((item) => {
       const existing = layouts.find((l) => l.i === item.i);
       return {
@@ -144,7 +125,7 @@ export default function Dashboard() {
         maxH: existing?.maxH ?? 6,
       };
     });
-    setLayouts(updatedLayout);
+    updateLayouts(updatedLayout);
   };
 
   const addWidget = (type: string, title: string) => {
@@ -153,7 +134,6 @@ export default function Dashboard() {
     
     const maxY = layouts.reduce((max, l) => Math.max(max, l.y + l.h), 0);
     
-    // Widget size configurations
     const widgetSizes: Record<string, { w: number; h: number; minW: number }> = {
       yeartracker: { w: 6, h: 3, minW: 4 },
       graph: { w: 4, h: 3, minW: 2 },
@@ -175,14 +155,48 @@ export default function Dashboard() {
       maxH: 6 
     };
     
-    setWidgets([...widgets, newWidget]);
-    setLayouts([...layouts, newLayout]);
+    const newWidgets = [...widgets, newWidget];
+    const newLayouts = [...layouts, newLayout];
+    
+    setWidgets(newWidgets);
+    setLayouts(newLayouts);
+    updateWidgets(newWidgets);
+    updateLayouts(newLayouts);
   };
 
   const removeWidget = (id: string) => {
-    setWidgets(widgets.filter((w) => w.id !== id));
-    setLayouts(layouts.filter((l) => l.i !== id));
+    const newWidgets = widgets.filter((w) => w.id !== id);
+    const newLayouts = layouts.filter((l) => l.i !== id);
+    
+    setWidgets(newWidgets);
+    setLayouts(newLayouts);
+    updateWidgets(newWidgets);
+    updateLayouts(newLayouts);
   };
+
+  // Filter widgets by active tab
+  const filteredWidgets = widgets.filter((widget) => {
+    if (activeTab === "all") return true;
+    return widgetCategories[activeTab]?.includes(widget.type);
+  });
+
+  const filteredLayouts = layouts.filter((layout) => {
+    const widget = widgets.find((w) => w.id === layout.i);
+    if (!widget) return false;
+    if (activeTab === "all") return true;
+    return widgetCategories[activeTab]?.includes(widget.type);
+  });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center cockpit-canvas">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground text-sm">Loading your cockpit...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen p-6 cockpit-canvas" ref={containerRef}>
@@ -197,75 +211,135 @@ export default function Dashboard() {
           </h1>
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="btn-press gap-2 border-primary/30 hover:border-primary/60">
-              <Plus className="h-4 w-4 text-primary" />
-              <span>Add Widget</span>
+        <div className="flex items-center gap-3">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="btn-press gap-2 border-primary/30 hover:border-primary/60">
+                <Plus className="h-4 w-4 text-primary" />
+                <span>Add Widget</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="border-border bg-card/95 backdrop-blur-xl">
+              {availableWidgets.map((widget) => (
+                <DropdownMenuItem
+                  key={widget.type}
+                  onClick={() => addWidget(widget.type, widget.title)}
+                  className="font-mono text-xs cursor-pointer"
+                >
+                  {widget.title}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {user && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={signOut}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4" />
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="border-border bg-card/95 backdrop-blur-xl">
-            {availableWidgets.map((widget) => (
-              <DropdownMenuItem
-                key={widget.type}
-                onClick={() => addWidget(widget.type, widget.title)}
-                className="font-mono text-xs cursor-pointer"
-              >
-                {widget.title}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          )}
+        </div>
       </header>
 
+      {/* Tabs */}
+      <div className="mb-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="bg-card/50 backdrop-blur-sm border border-border/50 p-1">
+            <TabsTrigger 
+              value="all" 
+              className="font-mono text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+            >
+              Overview
+            </TabsTrigger>
+            <TabsTrigger 
+              value="readiness" 
+              className="font-mono text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+            >
+              Readiness
+            </TabsTrigger>
+            <TabsTrigger 
+              value="neuro" 
+              className="font-mono text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+            >
+              Neuro
+            </TabsTrigger>
+            <TabsTrigger 
+              value="health" 
+              className="font-mono text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+            >
+              Health
+            </TabsTrigger>
+            <TabsTrigger 
+              value="analytics" 
+              className="font-mono text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+            >
+              Analytics
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
       {/* Grid Dashboard */}
-      {(ReactGridLayout as any) && (
+      {filteredWidgets.length > 0 && (
         <ReactGridLayout
           className="layout"
-          layout={layouts}
+          layout={filteredLayouts}
           cols={6}
           rowHeight={160}
           width={containerWidth - 48}
-          onLayoutChange={(newLayout: LayoutItem[]) => handleLayoutChange(newLayout)}
+          onLayoutChange={(newLayout: LayoutItem[]) => {
+            if (activeTab === "all") {
+              handleLayoutChange(newLayout);
+            }
+          }}
           draggableHandle=".drag-handle"
           margin={[12, 12]}
           containerPadding={[0, 0]}
-          isResizable={true}
+          isResizable={activeTab === "all"}
+          isDraggable={activeTab === "all"}
           resizeHandles={["s", "e", "se"]}
         >
-        {widgets.map((widget) => {
-          const WidgetComponent = widgetComponents[widget.type];
-          return (
-            <div key={widget.id} className="relative group">
-              {/* Drag Handle & Controls */}
-              <div className="absolute top-2 right-2 z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  className="drag-handle p-1.5 rounded bg-card/80 backdrop-blur-sm border border-border hover:bg-muted cursor-grab active:cursor-grabbing"
-                >
-                  <GripVertical className="h-4 w-4 text-muted-foreground" />
-                </button>
-                <button
-                  onClick={() => removeWidget(widget.id)}
-                  className="p-1.5 rounded bg-card/80 backdrop-blur-sm border border-border hover:bg-destructive/20 hover:border-destructive/50"
-                >
-                  <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                </button>
-              </div>
+          {filteredWidgets.map((widget) => {
+            const WidgetComponent = widgetComponents[widget.type];
+            return (
+              <div key={widget.id} className="relative group">
+                {/* Drag Handle & Controls */}
+                <div className="absolute top-2 right-2 z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    className="drag-handle p-1.5 rounded bg-card/80 backdrop-blur-sm border border-border hover:bg-muted cursor-grab active:cursor-grabbing"
+                  >
+                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                  <button
+                    onClick={() => removeWidget(widget.id)}
+                    className="p-1.5 rounded bg-card/80 backdrop-blur-sm border border-border hover:bg-destructive/20 hover:border-destructive/50"
+                  >
+                    <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                  </button>
+                </div>
 
-              {/* Widget Content */}
-              <div className="h-full overflow-hidden">
-                <WidgetComponent />
+                {/* Widget Content */}
+                <div className="h-full overflow-hidden">
+                  <WidgetComponent />
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
         </ReactGridLayout>
       )}
 
       {/* Empty State */}
-      {widgets.length === 0 && (
+      {filteredWidgets.length === 0 && (
         <div className="card-surface p-12 text-center">
-          <p className="text-muted-foreground mb-4">No widgets added yet</p>
+          <p className="text-muted-foreground mb-4">
+            {activeTab === "all" 
+              ? "No widgets added yet" 
+              : `No ${activeTab} widgets added yet`}
+          </p>
           <Button
             variant="outline"
             onClick={() => addWidget("readiness", "Readiness Index")}

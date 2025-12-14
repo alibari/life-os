@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Dashboard from "@/pages/Dashboard";
 import FlowState from "@/pages/FlowState";
 import Lab from "@/pages/Lab";
@@ -12,9 +13,54 @@ import Mirror from "@/pages/Mirror";
 import Cortex from "@/pages/Cortex";
 import Oracle from "@/pages/Oracle";
 import Vault from "@/pages/Vault";
+import Auth from "@/pages/Auth";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center cockpit-canvas">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/auth" element={<Auth />} />
+      <Route
+        element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/flow-state" element={<FlowState />} />
+        <Route path="/lab" element={<Lab />} />
+        <Route path="/north-star" element={<NorthStar />} />
+        <Route path="/mirror" element={<Mirror />} />
+        <Route path="/cortex" element={<Cortex />} />
+        <Route path="/oracle" element={<Oracle />} />
+        <Route path="/vault" element={<Vault />} />
+      </Route>
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -22,20 +68,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route element={<AppLayout />}>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/flow-state" element={<FlowState />} />
-            <Route path="/lab" element={<Lab />} />
-            <Route path="/north-star" element={<NorthStar />} />
-            <Route path="/mirror" element={<Mirror />} />
-            <Route path="/cortex" element={<Cortex />} />
-            <Route path="/oracle" element={<Oracle />} />
-            <Route path="/vault" element={<Vault />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
