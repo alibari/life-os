@@ -6,10 +6,8 @@ export function TReadyScore() {
   const { current, trend, status } = mockVoltage;
 
   return (
-    <div className="card-surface p-4 h-full flex flex-col">
-      <h2 className="font-mono text-xs text-muted-foreground tracking-wider mb-3 shrink-0 uppercase">
-        System Voltage
-      </h2>
+    <div className="h-full flex flex-col">
+
 
       <div className="flex-1 flex flex-col justify-center min-h-0">
         <div className="flex items-start justify-between gap-4">

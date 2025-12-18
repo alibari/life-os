@@ -15,11 +15,11 @@ export const PFCBattery = () => {
   const calculateBattery = () => {
     const now = new Date();
     const hoursAwake = (now.getTime() - wakeTime.getTime()) / (1000 * 60 * 60);
-    
+
     const baseDecay = hoursAwake * 5;
     const deepWorkDecay = deepWorkSessions * 10;
     const nsdrRecharge = nsdrSessions * 15;
-    
+
     return Math.max(0, Math.min(100, 100 - baseDecay - deepWorkDecay + nsdrRecharge));
   };
 
@@ -44,14 +44,13 @@ export const PFCBattery = () => {
   const filledSegments = Math.ceil((battery / 100) * batterySegments);
 
   return (
-    <div className="h-full card-surface p-4 flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden bg-transparent">
       {/* Header */}
       <div className="flex items-center justify-between mb-3 shrink-0">
         <div className="flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
             <Brain className="h-4 w-4 text-blue-400" />
           </div>
-          <h3 className="font-mono text-xs font-bold text-foreground uppercase tracking-wider">PFC Battery</h3>
         </div>
         <span className={cn("font-mono text-[10px] font-bold px-2 py-0.5 rounded-full bg-card border border-border", zone.color)}>
           {zone.label}
@@ -62,7 +61,7 @@ export const PFCBattery = () => {
       <div className="flex-1 flex flex-col justify-center min-h-0 py-2">
         <div className="relative">
           {/* Battery body - horizontal */}
-          <div 
+          <div
             className="h-14 lg:h-20 rounded-xl border-2 border-zinc-700 bg-zinc-900/80 p-1.5 flex gap-1 transition-shadow duration-500"
             style={{ boxShadow: `0 0 30px ${zone.glow}30` }}
           >
@@ -85,10 +84,10 @@ export const PFCBattery = () => {
               />
             ))}
           </div>
-          
+
           {/* Battery cap */}
           <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[6px] w-2 h-6 lg:h-8 rounded-r-md bg-zinc-700 border-2 border-l-0 border-zinc-600" />
-          
+
           {/* Percentage overlay */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="bg-black/60 backdrop-blur-sm rounded-lg px-3 py-1">

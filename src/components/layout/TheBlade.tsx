@@ -10,6 +10,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useAuth } from "@/hooks/useAuth";
 
 interface TheBladeProps {
   collapsed: boolean;
@@ -38,16 +40,17 @@ const navItems = [
 export function TheBlade({ collapsed, onToggle }: TheBladeProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { signOut } = useAuth();
 
   return (
     <aside
       className={cn(
         "h-screen sticky top-0 flex flex-col border-r border-border bg-background transition-all duration-300 z-50",
-        collapsed ? "w-16" : "w-56"
+        collapsed ? "w-16" : "w-64"
       )}
     >
       {/* Logo */}
-      <div className="p-4 border-b border-border flex items-center justify-between h-14">
+      <div className="p-4 border-b border-border flex items-center justify-between h-14 shrink-0">
         {!collapsed && (
           <h1 className="font-mono text-sm tracking-wider">
             <span className="text-primary">LIFE</span>
@@ -79,22 +82,22 @@ export function TheBlade({ collapsed, onToggle }: TheBladeProps) {
               key={item.path}
               onClick={() => navigate(item.path)}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all btn-press",
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all btn-press group",
                 "hover:bg-card",
                 isActive && "bg-card border border-primary/30 glow-anabolic"
               )}
             >
               <Icon
                 className={cn(
-                  "h-5 w-5 flex-shrink-0",
-                  isActive ? "text-primary" : "text-muted-foreground"
+                  "h-5 w-5 flex-shrink-0 transition-colors",
+                  isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
                 )}
               />
               {!collapsed && (
                 <div className="text-left min-w-0">
                   <p
                     className={cn(
-                      "font-mono text-xs tracking-wide truncate",
+                      "font-mono text-xs tracking-wide truncate transition-colors",
                       isActive ? "text-primary" : "text-foreground"
                     )}
                   >
@@ -105,7 +108,8 @@ export function TheBlade({ collapsed, onToggle }: TheBladeProps) {
             </button>
           );
 
-          if (collapsed) {
+          if (collapsed && !isActive) { // Only tooltip on collapsed
+            // Tooltip logic (omitted for brevity in replacement, but keeping standard structure)
             return (
               <Tooltip key={item.path} delayDuration={0}>
                 <TooltipTrigger asChild>{button}</TooltipTrigger>
@@ -120,14 +124,30 @@ export function TheBlade({ collapsed, onToggle }: TheBladeProps) {
         })}
       </nav>
 
-      {/* Footer */}
-      {!collapsed && (
-        <div className="p-4 border-t border-border">
-          <p className="text-xs font-mono text-muted-foreground/50">
-            v1.0.0 // ACTIVE
+      {/* Footer Controls */}
+      <div className="p-3 border-t border-border bg-background/50 backdrop-blur-sm flex flex-col gap-2">
+
+        {/* Sign Out - Sleek Minimalist */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={signOut}
+          className={cn(
+            "w-full flex items-center gap-2 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors h-7",
+            collapsed ? "justify-center p-0" : "justify-start px-2"
+          )}
+          title="Disconnect"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          {!collapsed && <span className="font-mono text-[10px] tracking-wider uppercase">Disconnect</span>}
+        </Button>
+
+        {!collapsed && (
+          <p className="text-[9px] font-mono text-muted-foreground/20 text-center pb-1">
+            v1.0.0
           </p>
-        </div>
-      )}
+        )}
+      </div>
     </aside>
   );
 }

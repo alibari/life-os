@@ -9,7 +9,7 @@ const mockData = {
 
 export const DopamineDelta = () => {
   const totalDelta = mockData.earnedDopamine - mockData.cheapDopamine;
-  
+
   const normalizedDelta = Math.max(-100, Math.min(100, totalDelta));
   const barPosition = ((normalizedDelta + 100) / 200) * 100;
 
@@ -22,14 +22,13 @@ export const DopamineDelta = () => {
   const status = getStatus();
 
   return (
-    <div className="h-full card-surface p-4 flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden bg-transparent">
       {/* Header */}
       <div className="flex items-center justify-between mb-3 shrink-0">
         <div className="flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
             <Zap className="h-4 w-4 text-emerald-400" />
           </div>
-          <h3 className="font-mono text-xs font-bold text-foreground uppercase tracking-wider">Dopamine Delta</h3>
         </div>
         <span className={cn("font-mono text-[10px] font-bold px-2 py-0.5 rounded-full bg-card border border-border", status.color)}>
           {status.label}
@@ -49,20 +48,20 @@ export const DopamineDelta = () => {
               <div className="w-1/2 bg-gradient-to-r from-red-500/20 via-red-500/10 to-transparent" />
               <div className="w-1/2 bg-gradient-to-l from-emerald-500/20 via-emerald-500/10 to-transparent" />
             </div>
-            
+
             {/* Center marker */}
             <div className="absolute left-1/2 top-2 bottom-2 w-px bg-zinc-600" />
-            
+
             {/* Delta indicator orb */}
-            <div 
+            <div
               className="absolute top-1/2 -translate-y-1/2 w-7 h-7 lg:w-9 lg:h-9 rounded-full transition-all duration-700 ease-out flex items-center justify-center"
-              style={{ 
+              style={{
                 left: `calc(${barPosition}% - 16px)`,
-                background: normalizedDelta >= 0 
-                  ? 'linear-gradient(135deg, #10b981, #059669)' 
+                background: normalizedDelta >= 0
+                  ? 'linear-gradient(135deg, #10b981, #059669)'
                   : 'linear-gradient(135deg, #ef4444, #dc2626)',
-                boxShadow: normalizedDelta >= 0 
-                  ? '0 0 20px #10b981, inset 0 1px 0 rgba(255,255,255,0.2)' 
+                boxShadow: normalizedDelta >= 0
+                  ? '0 0 20px #10b981, inset 0 1px 0 rgba(255,255,255,0.2)'
                   : '0 0 20px #ef4444, inset 0 1px 0 rgba(255,255,255,0.2)'
               }}
             >
@@ -71,7 +70,7 @@ export const DopamineDelta = () => {
               </span>
             </div>
           </div>
-          
+
           {/* Scale labels */}
           <div className="flex justify-between mt-2 px-1">
             <span className="font-mono text-[9px] lg:text-[10px] text-red-400/60 uppercase tracking-wider">Deficit</span>

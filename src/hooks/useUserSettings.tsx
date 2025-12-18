@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { Json } from "@/integrations/supabase/types";
 
-interface LayoutItem {
+export interface LayoutItem {
   i: string;
   x: number;
   y: number;
@@ -15,17 +15,15 @@ interface LayoutItem {
   maxH?: number;
 }
 
-interface WidgetConfig {
+export interface WidgetConfig {
   id: string;
   type: string;
   title: string;
 }
 
-interface PageLayouts {
-  [pageId: string]: {
-    layouts: LayoutItem[];
-    widgets: WidgetConfig[];
-  };
+interface PageData {
+  layouts: LayoutItem[];
+  widgets: WidgetConfig[];
 }
 
 interface UserSettings {
@@ -34,6 +32,7 @@ interface UserSettings {
   flow_state_settings: Record<string, unknown>;
 }
 
+// Default fallbacks
 const defaultCockpitLayouts: LayoutItem[] = [
   { i: "readiness-1", x: 0, y: 0, w: 2, h: 2, minW: 1, maxW: 6, minH: 2, maxH: 8 },
   { i: "circadian-1", x: 2, y: 0, w: 2, h: 2, minW: 1, maxW: 6, minH: 2, maxH: 8 },
@@ -46,24 +45,15 @@ const defaultCockpitWidgets: WidgetConfig[] = [
   { id: "voltage-1", type: "voltage", title: "System Voltage" },
 ];
 
-const defaultFlowLayouts: LayoutItem[] = [
-  { i: "weekly-streak", x: 0, y: 0, w: 2, h: 2, minW: 1, maxW: 6, minH: 2, maxH: 8 },
-  { i: "focus-goals", x: 2, y: 0, w: 2, h: 2, minW: 1, maxW: 6, minH: 2, maxH: 8 },
-  { i: "ai-insights", x: 4, y: 0, w: 2, h: 2, minW: 1, maxW: 6, minH: 2, maxH: 8 },
-];
-
-const defaultFlowWidgets: WidgetConfig[] = [
-  { id: "weekly-streak", type: "weeklystreak", title: "Weekly Streak" },
-  { id: "focus-goals", type: "focusgoals", title: "Focus Goals" },
-  { id: "ai-insights", type: "aiinsights", title: "AI Insights" },
-];
-
 export function useUserSettings() {
   const { user } = useAuth();
-  const [layouts, setLayouts] = useState<LayoutItem[]>(defaultCockpitLayouts);
-  const [widgets, setWidgets] = useState<WidgetConfig[]>(defaultCockpitWidgets);
-  const [flowLayouts, setFlowLayouts] = useState<LayoutItem[]>(defaultFlowLayouts);
-  const [flowWidgets, setFlowWidgets] = useState<WidgetConfig[]>(defaultFlowWidgets);
+
+  // Local state for all pages
+  // We'll store everything in a map: pageId -> PageData
+  const [pages, setPages] = useState<Record<string, PageData>>({
+    dashboard: { layouts: defaultCockpitLayouts, widgets: defaultCockpitWidgets }
+  });
+
   const [flowStateSettings, setFlowStateSettings] = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
@@ -71,10 +61,9 @@ export function useUserSettings() {
   // Load settings from database
   useEffect(() => {
     if (!user) {
-      setLayouts(defaultCockpitLayouts);
-      setWidgets(defaultCockpitWidgets);
-      setFlowLayouts(defaultFlowLayouts);
-      setFlowWidgets(defaultFlowWidgets);
+      setPages({
+        dashboard: { layouts: defaultCockpitLayouts, widgets: defaultCockpitWidgets }
+      });
       setFlowStateSettings({});
       setLoading(false);
       setInitialized(false);
@@ -97,22 +86,27 @@ export function useUserSettings() {
       }
 
       if (data) {
-        const savedLayouts = data.dashboard_layouts as unknown as LayoutItem[];
-        const savedWidgets = data.dashboard_widgets as unknown as WidgetConfig[];
-        const savedFlowState = data.flow_state_settings as Record<string, unknown>;
+        // Parse Dashboard (legacy columns)
+        const dbDashboardLayouts = data.dashboard_layouts as unknown as LayoutItem[];
+        const dbDashboardWidgets = data.dashboard_widgets as unknown as WidgetConfig[];
 
-        setLayouts(savedLayouts?.length ? savedLayouts : defaultCockpitLayouts);
-        setWidgets(savedWidgets?.length ? savedWidgets : defaultCockpitWidgets);
-        
-        // Load flow state specific layouts if saved
-        if (savedFlowState?.flowLayouts) {
-          setFlowLayouts(savedFlowState.flowLayouts as LayoutItem[]);
-        }
-        if (savedFlowState?.flowWidgets) {
-          setFlowWidgets(savedFlowState.flowWidgets as WidgetConfig[]);
-        }
-        
-        setFlowStateSettings(savedFlowState || {});
+        // Parse Flow State / Generic Settings (JSON column)
+        const savedSettings = data.flow_state_settings as Record<string, any> || {};
+
+        // Extract other pages from savedSettings.pages_data if it exists
+        const otherPages = savedSettings.pages_data || {};
+
+        // Construct full state
+        setPages({
+          dashboard: {
+            layouts: dbDashboardLayouts?.length ? dbDashboardLayouts : defaultCockpitLayouts,
+            widgets: dbDashboardWidgets?.length ? dbDashboardWidgets : defaultCockpitWidgets
+          },
+          ...otherPages
+        });
+
+        // Store raw settings mostly for other keys
+        setFlowStateSettings(savedSettings);
       }
 
       setLoading(false);
@@ -122,127 +116,64 @@ export function useUserSettings() {
     loadSettings();
   }, [user]);
 
-  // Save settings to database
-  const saveSettings = useCallback(
-    async (
-      newLayouts: LayoutItem[], 
-      newWidgets: WidgetConfig[], 
-      newFlowState?: Record<string, unknown>
-    ) => {
-      if (!user) return;
+  // Helper to save everything back to DB
+  const persistSettings = async (
+    currentPages: Record<string, PageData>,
+    currentSettings: Record<string, unknown>
+  ) => {
+    if (!user) return;
 
-      const flowSettings = newFlowState || flowStateSettings;
-      
-      const { error } = await supabase
-        .from("user_settings")
-        .update({
-          dashboard_layouts: newLayouts as unknown as Json,
-          dashboard_widgets: newWidgets as unknown as Json,
-          flow_state_settings: {
-            ...flowSettings,
-            flowLayouts,
-            flowWidgets,
-          } as unknown as Json,
-        })
-        .eq("user_id", user.id);
+    // Separate dashboard from others
+    const { dashboard, ...otherPages } = currentPages;
 
-      if (error) {
-        console.error("Error saving settings:", error);
-      }
+    // Merge other pages into settings JSON
+    const mergedSettings = {
+      ...currentSettings,
+      pages_data: otherPages
+    };
+
+    const { error } = await supabase
+      .from("user_settings")
+      .update({
+        dashboard_layouts: dashboard?.layouts as unknown as Json,
+        dashboard_widgets: dashboard?.widgets as unknown as Json,
+        flow_state_settings: mergedSettings as unknown as Json,
+      })
+      .eq("user_id", user.id);
+
+    if (error) {
+      console.error("Error saving settings:", error);
+    }
+  };
+
+  // Generic Update Function
+  const updatePageSettings = useCallback(
+    (pageId: string, layouts: LayoutItem[], widgets: WidgetConfig[]) => {
+      setPages(prev => {
+        const newPages = {
+          ...prev,
+          [pageId]: { layouts, widgets }
+        };
+
+        if (initialized && user) {
+          persistSettings(newPages, flowStateSettings);
+        }
+        return newPages;
+      });
     },
-    [user, flowStateSettings, flowLayouts, flowWidgets]
+    [initialized, user, flowStateSettings]
   );
 
-  const saveFlowSettings = useCallback(
-    async (newFlowLayouts: LayoutItem[], newFlowWidgets: WidgetConfig[]) => {
-      if (!user) return;
-
-      const { error } = await supabase
-        .from("user_settings")
-        .update({
-          flow_state_settings: {
-            ...flowStateSettings,
-            flowLayouts: newFlowLayouts,
-            flowWidgets: newFlowWidgets,
-          } as unknown as Json,
-        })
-        .eq("user_id", user.id);
-
-      if (error) {
-        console.error("Error saving flow settings:", error);
-      }
-    },
-    [user, flowStateSettings]
-  );
-
-  const updateLayouts = useCallback(
-    (newLayouts: LayoutItem[]) => {
-      setLayouts(newLayouts);
-      if (initialized && user) {
-        saveSettings(newLayouts, widgets);
-      }
-    },
-    [initialized, user, widgets, saveSettings]
-  );
-
-  const updateWidgets = useCallback(
-    (newWidgets: WidgetConfig[]) => {
-      setWidgets(newWidgets);
-      if (initialized && user) {
-        saveSettings(layouts, newWidgets);
-      }
-    },
-    [initialized, user, layouts, saveSettings]
-  );
-
-  const updateFlowLayouts = useCallback(
-    (newLayouts: LayoutItem[]) => {
-      setFlowLayouts(newLayouts);
-      if (initialized && user) {
-        saveFlowSettings(newLayouts, flowWidgets);
-      }
-    },
-    [initialized, user, flowWidgets, saveFlowSettings]
-  );
-
-  const updateFlowWidgets = useCallback(
-    (newWidgets: WidgetConfig[]) => {
-      setFlowWidgets(newWidgets);
-      if (initialized && user) {
-        saveFlowSettings(flowLayouts, newWidgets);
-      }
-    },
-    [initialized, user, flowLayouts, saveFlowSettings]
-  );
-
-  const updateFlowStateSettings = useCallback(
-    (newSettings: Record<string, unknown>) => {
-      setFlowStateSettings(newSettings);
-      if (initialized && user) {
-        saveSettings(layouts, widgets, newSettings);
-      }
-    },
-    [initialized, user, layouts, widgets, saveSettings]
-  );
+  // Specific getters for backward compatibility if needed, 
+  // but preferably consumers use getPage(id) logic.
 
   return {
-    // Cockpit
-    layouts,
-    widgets,
-    updateLayouts,
-    updateWidgets,
-    setLayouts,
-    setWidgets,
-    // Flow State
-    flowLayouts,
-    flowWidgets,
-    updateFlowLayouts,
-    updateFlowWidgets,
-    setFlowLayouts,
-    setFlowWidgets,
-    // General
-    flowStateSettings,
+    pages,
     loading,
-    updateFlowStateSettings,
+    updatePageSettings,
+    // Accessor for specific page to simplify usage
+    getPageSettings: (pageId: string, defaults?: PageData) => {
+      return pages[pageId] || defaults || { layouts: [], widgets: [] };
+    }
   };
 }

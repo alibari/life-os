@@ -8,7 +8,7 @@ export const AdenosinePressure = () => {
     now.setHours(7, 0, 0, 0);
     return now;
   });
-  
+
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Mock caffeine data - will be connected to other pages later
@@ -32,9 +32,9 @@ export const AdenosinePressure = () => {
     return expiresAt > currentTime && c.time < currentTime;
   });
   const caffeineActive = activeCaffeine.length > 0;
-  
+
   // Find crash time
-  const crashTime = activeCaffeine.length > 0 
+  const crashTime = activeCaffeine.length > 0
     ? new Date(Math.max(...activeCaffeine.map(c => c.time.getTime() + 6 * 60 * 60 * 1000)))
     : null;
 
@@ -51,14 +51,13 @@ export const AdenosinePressure = () => {
   const pressureStyle = getPressureColor();
 
   return (
-    <div className="h-full card-surface p-4 flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden bg-transparent">
       {/* Header */}
       <div className="flex items-center justify-between mb-3 shrink-0">
         <div className="flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20">
             <Moon className="h-4 w-4 text-purple-400" />
           </div>
-          <h3 className="font-mono text-xs font-bold text-foreground uppercase tracking-wider">Adenosine</h3>
         </div>
         <span className="font-mono text-[10px] text-muted-foreground bg-card px-2 py-0.5 rounded-full border border-border">
           {hoursAwake.toFixed(1)}h awake
@@ -66,7 +65,7 @@ export const AdenosinePressure = () => {
       </div>
 
       {/* Wave Visualization */}
-      <div 
+      <div
         className="flex-1 relative bg-zinc-900/60 rounded-xl border border-border overflow-hidden min-h-0"
         style={{ boxShadow: `inset 0 -20px 40px ${pressureStyle.glow}10` }}
       >
@@ -86,10 +85,10 @@ export const AdenosinePressure = () => {
               className="animate-pulse"
             />
           </svg>
-          
+
           {/* Caffeine mask line */}
           {caffeineActive && (
-            <div 
+            <div
               className="absolute left-0 right-0 border-t-2 border-dashed border-blue-500 animate-pulse"
               style={{ top: '35%' }}
             >

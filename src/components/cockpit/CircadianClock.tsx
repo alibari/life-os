@@ -37,10 +37,8 @@ export function CircadianClock() {
   const hours = [0, 6, 12, 18, 24];
 
   return (
-    <div className="card-surface p-4 h-full flex flex-col overflow-hidden">
-      <h2 className="font-mono text-xs text-muted-foreground tracking-wider mb-3 shrink-0 uppercase">
-        Circadian Rhythm
-      </h2>
+    <div className="h-full flex flex-col overflow-hidden">
+
 
       {/* Timeline */}
       <div className="relative shrink-0">
@@ -96,10 +94,10 @@ export function CircadianClock() {
           {currentHour >= 10 && currentHour < 14
             ? "PEAK FOCUS // EXECUTE"
             : currentHour >= 6 && currentHour < 7
-            ? "CORTISOL WINDOW // MOVE"
-            : currentHour >= 21
-            ? "WIND DOWN // RECOVER"
-            : "STANDARD OPERATION"}
+              ? "CORTISOL WINDOW // MOVE"
+              : currentHour >= 21
+                ? "WIND DOWN // RECOVER"
+                : "STANDARD OPERATION"}
         </p>
       </div>
     </div>

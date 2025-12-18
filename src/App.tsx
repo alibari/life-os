@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { SystemBoot } from "@/components/layout/SystemBoot";
 import Dashboard from "@/pages/Dashboard";
 import FlowState from "@/pages/FlowState";
 import Lab from "@/pages/Lab";
@@ -21,12 +22,10 @@ const queryClient = new QueryClient();
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
+  // Show futuristic boot screen while loading OR while auth is initializing
+  // We can also add a minimum display time if needed, but for now, rely on auth loading
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center cockpit-canvas">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <SystemBoot />;
   }
 
   if (!user) {
