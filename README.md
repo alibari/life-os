@@ -1,73 +1,57 @@
-# Welcome to your Lovable project
+# Life OS - Personal Operating System (V2)
 
-## Project info
+**Life OS** is a futuristic, glassmorphic personal dashboard designed to optimize human performance. It integrates flow state tracking, bio-data analysis, and long-term strategic planning into a single, conscious interface.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## 🚀 Features
 
-## How can I edit this code?
+### 🧠 Flow State Cortex
+- **Neuro-Flow Timer**: Customizable 90-minute ultradian rhythm cycles.
+- **Protocol Tracking**: Step-by-step guidance for entering flow.
+- **Session Analytics**: AI-driven insights into your focus patterns.
 
-There are several ways of editing your application.
+### 🧬 The Lab (Bio-Data)
+- **Recovery Vitals**: Visualizes HRV, Sleep, and Resting Heart Rate.
+- **Circadian Clock**: Real-time tracking of your biological rhythm.
+- **Neuro-Chemical Estimates**: Visual representations of Dopamine and Adenosine levels.
 
-**Use Lovable**
+### ⭐ North Star Strategy
+- **10-Year Vision Board**: Long-term alignment tracking.
+- **Quarterly Objectives**: Breakdown of high-level goals.
+- **Daily Alignment**: Metrics to ensure your day matches your life mission.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+### 🖥️ System Architecture
+- **Conscious Boot Sequence**: Immersive "System Boot" animation on load.
+- **Glassmorphism UI**: Premium, dark-mode aesthetic with real-time blur effects.
+- **Responsive Grid**: Draggable, resizable widget system (`react-grid-layout`).
 
-Changes made via Lovable will be committed automatically to this repo.
+## 🛠️ Tech Stack
+- **Framework**: React + Vite
+- **Styling**: Tailwind CSS + Shadcn UI
+- **Icons**: Lucide React
+- **Animation**: Framer Motion
+- **State Management**: React Query + Context API
 
-**Use your preferred IDE**
+## 📦 Installation
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-username/life-os.git
+   cd life-os
+   ```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-Follow these steps:
+3. **Start the Neural Link (Dev Server)**
+   ```bash
+   npm run dev
+   ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 🔒 Security
+- This project uses Supabase for authentication.
+- **Environment Variables**: Ensure you create a `.env` file with your `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+---
+*System.v2.1.0 // ONLINE*
