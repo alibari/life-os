@@ -97,7 +97,8 @@ export default function Settings() {
                                     1. Open "Auto Export" on iPhone.{"\n"}
                                     2. Create new Automation &gt; "API Export".{"\n"}
                                     3. Copy the Endpoint URL below.{"\n"}
-                                    4. Add Header: `Authorization` : value below.
+                                    4. **Critical**: In Supabase Dashboard > Settings > Edge Functions > Secrets, add `INGEST_SECRET`.{"\n"}
+                                    5. In Auto Export, add Header: `x-life-os-key` : (your secret value).
                                 </div>
 
                                 <div className="space-y-2">
