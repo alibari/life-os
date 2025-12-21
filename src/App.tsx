@@ -13,9 +13,10 @@ import NorthStar from "@/pages/NorthStar";
 import Mirror from "@/pages/Mirror";
 import Cortex from "@/pages/Cortex";
 import Oracle from "@/pages/Oracle";
-import Vault from "@/pages/Vault";
 import Auth from "@/pages/Auth";
+import Settings from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
+import { LensProvider } from "@/context/LensContext";
 
 const queryClient = new QueryClient();
 
@@ -54,7 +55,8 @@ function AppRoutes() {
         <Route path="/mirror" element={<Mirror />} />
         <Route path="/cortex" element={<Cortex />} />
         <Route path="/oracle" element={<Oracle />} />
-        <Route path="/vault" element={<Vault />} />
+
+        <Route path="/settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
@@ -67,9 +69,11 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AuthProvider>
-          <AppRoutes />
-        </AuthProvider>
+        <LensProvider>
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
+        </LensProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

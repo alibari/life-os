@@ -41,7 +41,7 @@ git push origin main
 1.  **Missing Imports:** When modifying `App.tsx`, do not strictly replace content without preserving existing imports (Router, Auth, Pages).
 2.  **Layout Misalignment:** All pages must use the container class:
     `min-h-screen pt-8 px-6 pb-20 cockpit-canvas flex flex-col items-center`
-3.  **Lovable References:** Do not re-introduce "Lovable" branding. This is a custom "Life OS" build.
+3.  **External Branding:** Do not re-introduce any external branding (e.g. "Lovable"). This is a custom "Life OS" build.
 
 ## 🔒 Security Protocol
 *   NEVER commit `.env` files.

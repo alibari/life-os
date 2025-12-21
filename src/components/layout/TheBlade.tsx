@@ -1,4 +1,6 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, Link, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { motion } from "framer-motion";
 import {
   Gauge,
   Waves,
@@ -8,9 +10,10 @@ import {
   Brain,
   Eye,
   Settings,
+  Shield,
+  LogOut,
   ChevronLeft,
-  ChevronRight,
-  LogOut
+  ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -20,6 +23,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import { useLens } from "@/context/LensContext";
 
 interface TheBladeProps {
   collapsed: boolean;
@@ -34,13 +38,28 @@ const navItems = [
   { icon: User, label: "THE MIRROR", path: "/mirror", description: "Social/Aura" },
   { icon: Brain, label: "CORTEX", path: "/cortex", description: "Notes" },
   { icon: Eye, label: "THE ORACLE", path: "/oracle", description: "Analytics" },
-  { icon: Settings, label: "VAULT", path: "/vault", description: "Settings" },
+  { icon: Shield, label: "CONTROL CENTER", path: "/settings", description: "System Integrity" },
 ];
 
 export function TheBlade({ collapsed, onToggle }: TheBladeProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
+  const { currentLens, setLens } = useLens();
+
+  // Filter nav items: Hide 'Control Center' (Settings) in Focus Mode if strict visibility is requested.
+  // User request: "in focus mode we hide the page control center its visible only in lab mode"
+  const filteredNavItems = navItems.filter(item => {
+    if (item.path === "/settings" && currentLens !== "lab") return false;
+    return true;
+  });
+
+  // Redirect away from Settings if in Focus Mode
+  useEffect(() => {
+    if (currentLens === "focus" && location.pathname === "/settings") {
+      navigate("/dashboard");
+    }
+  }, [currentLens, location.pathname, navigate]);
 
   return (
     <aside
@@ -73,7 +92,7 @@ export function TheBlade({ collapsed, onToggle }: TheBladeProps) {
 
       {/* Navigation */}
       <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
+        {filteredNavItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
 
@@ -124,8 +143,51 @@ export function TheBlade({ collapsed, onToggle }: TheBladeProps) {
         })}
       </nav>
 
+      {/* Lens Switcher (Fluid Intelligence) */}
+      {/* Lens Switcher (Premium Minimalist Toggle) */}
+      {!collapsed && (
+        <div className="px-4 py-4 border-t border-border/40">
+          <div className="relative flex items-center bg-muted/30 rounded-full p-1 h-8">
+            {/* Sliding Background - Clean Card Look */}
+            <motion.div
+              className="absolute top-1 bottom-1 bg-background rounded-full shadow-sm z-0"
+              initial={false}
+              animate={{
+                x: currentLens === "focus" ? 0 : "100%",
+                width: "50%"
+              }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            />
+
+            <button
+              onClick={() => setLens("focus")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 z-10 text-[10px] font-mono tracking-wider uppercase transition-colors duration-200",
+                currentLens === "focus" ? "text-foreground font-medium" : "text-muted-foreground/60 hover:text-foreground/80"
+              )}
+            >
+              <Eye className="w-3 h-3" />
+              <span>Focus</span>
+            </button>
+
+            <button
+              onClick={() => setLens("lab")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 z-10 text-[10px] font-mono tracking-wider uppercase transition-colors duration-200",
+                currentLens === "lab" ? "text-foreground font-medium" : "text-muted-foreground/60 hover:text-foreground/80"
+              )}
+            >
+              <FlaskConical className="w-3 h-3" />
+              <span>Lab</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Footer Controls */}
       <div className="p-3 border-t border-border bg-background/50 backdrop-blur-sm flex flex-col gap-2">
+
+
 
         {/* Sign Out - Sleek Minimalist */}
         <Button

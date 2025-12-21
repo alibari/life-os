@@ -1,11 +1,9 @@
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-
-const weeklyMetrics = {
-    recoveryScore: 85,
-    hydration: 78,
-    avgHRV: 52,
-};
+import { useQuery } from "@tanstack/react-query";
+import { healthService } from "@/services/health";
+import { useSystemSettings } from "@/hooks/useSystemSettings";
+import { AlertTriangle } from "lucide-react";
 
 interface RingProgressProps {
     value: number;
@@ -68,16 +66,50 @@ function RingProgress({ value, max, strokeWidth = 8, color, label, unit, compact
 }
 
 export function LabRecoveryVitals({ compact }: { compact?: boolean }) {
+    // Fetch real HRV data (7-day average)
+    const { data: hrvData } = useQuery({
+        queryKey: ['health-metric', 'heart_rate_variability'],
+        queryFn: () => healthService.getQuickAverage('heart_rate_variability', 7),
+    });
+
+    // Fetch real Resting Heart Rate data (7-day average)
+    const { data: rhrData } = useQuery({
+        queryKey: ['health-metric', 'resting_heart_rate'],
+        queryFn: () => healthService.getQuickAverage('resting_heart_rate', 7),
+    });
+
+    const { strictMode } = useSystemSettings();
+
+    // Calculate derived metrics
+    const avgHRV = hrvData ? Math.round(hrvData) : (strictMode ? 0 : 52);
+    const avgRHR = rhrData ? Math.round(rhrData) : (strictMode ? 0 : 65);
+    const isStale = (hrvData === null || rhrData === null) && strictMode;
+
+    // Recovery Score: Higher HRV + lower RHR = better recovery
+    // Normalize: HRV (30-100ms range), RHR (40-80bpm range)
+    const recoveryScore = Math.min(
+        100,
+        Math.max(0, ((avgHRV - 30) / 70) * 50 + ((80 - avgRHR) / 40) * 50)
+    );
+
     return (
         <div className="h-full flex flex-col">
             {!compact && (
-                <h3 className="text-xs font-mono text-muted-foreground mb-4 uppercase tracking-wider shrink-0">
-                    Recovery Vitals
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xs font-mono text-muted-foreground uppercase tracking-wider shrink-0">
+                        Recovery Vitals
+                    </h3>
+                    {isStale && (
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-destructive/10 border border-destructive/20 rounded text-[9px] font-mono text-destructive animate-pulse">
+                            <AlertTriangle className="h-3 w-3" />
+                            STALE DATA
+                        </div>
+                    )}
+                </div>
             )}
             <div className="flex-1 grid grid-cols-3 gap-2 items-center justify-items-center h-full min-h-0">
                 <RingProgress
-                    value={weeklyMetrics.recoveryScore}
+                    value={Math.round(recoveryScore)}
                     max={100}
                     color="hsl(var(--primary))"
                     label="Recovery"
@@ -85,15 +117,15 @@ export function LabRecoveryVitals({ compact }: { compact?: boolean }) {
                     compact={compact}
                 />
                 <RingProgress
-                    value={weeklyMetrics.hydration}
+                    value={avgRHR}
                     max={100}
                     color="hsl(var(--accent))"
-                    label="Hydration"
-                    unit="%"
+                    label="RHR"
+                    unit="bpm"
                     compact={compact}
                 />
                 <RingProgress
-                    value={weeklyMetrics.avgHRV}
+                    value={avgHRV}
                     max={100}
                     color="hsl(var(--destructive))"
                     label="HRV"

@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, ComponentType } from "react";
+import { cn } from "@/lib/utils";
 import RGL from "react-grid-layout";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserSettings, LayoutItem, WidgetConfig } from "@/hooks/useUserSettings";
 import { WidgetFrame } from "./WidgetFrame";
+import { motion, AnimatePresence } from "framer-motion";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -20,7 +22,7 @@ interface WidgetCanvasProps {
     widgetComponents: Record<string, React.FC<{ compact?: boolean }>>;
     defaultLayouts?: LayoutItem[];
     defaultWidgets?: WidgetConfig[];
-    children?: React.ReactNode; // Extra header content
+    locked?: boolean;
 }
 
 export function WidgetCanvas({
@@ -29,10 +31,11 @@ export function WidgetCanvas({
     widgetComponents,
     defaultLayouts = [],
     defaultWidgets = [],
-    children
+    children,
+    locked = false
 }: WidgetCanvasProps) {
     const containerRef = useRef<HTMLDivElement>(null);
-    const [containerWidth, setContainerWidth] = useState(1200);
+    const [containerWidth, setContainerWidth] = useState(0);
     const { getPageSettings, updatePageSettings, loading } = useUserSettings();
 
     // Fetch data
@@ -45,11 +48,14 @@ export function WidgetCanvas({
     useEffect(() => {
         const updateWidth = () => {
             if (containerRef.current) {
-                setContainerWidth(containerRef.current.offsetWidth);
+                const width = containerRef.current.offsetWidth;
+                if (width > 0) setContainerWidth(width);
             }
         };
 
-        // Initial and resize
+        // Initial measurement
+        updateWidth();
+
         const observer = new ResizeObserver(updateWidth);
         if (containerRef.current) observer.observe(containerRef.current);
 
@@ -57,6 +63,9 @@ export function WidgetCanvas({
     }, []);
 
     const handleLayoutChange = (newLayout: LayoutItem[]) => {
+        // If locked, do not save layout changes that might accidentally happen
+        if (locked) return;
+
         // Preserve constraints
         const updatedLayout = layouts.map((existing) => {
             const changed = newLayout.find((l) => l.i === existing.i);
@@ -82,6 +91,7 @@ export function WidgetCanvas({
     };
 
     const addWidget = (type: string, title: string) => {
+        if (locked) return;
         const newId = `${type}-${Date.now()}`;
         const newWidget: WidgetConfig = { id: newId, type, title };
 
@@ -106,13 +116,15 @@ export function WidgetCanvas({
     };
 
     const removeWidget = (id: string) => {
+        if (locked) return;
         const newWidgets = widgets.filter((w) => w.id !== id);
         const newLayouts = layouts.filter((l) => l.i !== id);
         updatePageSettings(pageId, newLayouts, newWidgets);
     };
 
     const toggleFullWidth = (id: string) => {
-        const layout = layouts.find(l => l.i === id);
+        if (locked) return;
+        const layout = layouts.find(l => l.id === id || l.i === id);
         if (!layout) return;
 
         const isFull = layout.w === 12;
@@ -135,83 +147,110 @@ export function WidgetCanvas({
     };
 
     if (loading && layouts.length === 0) {
-        return <div className="p-12 text-center text-muted-foreground animate-pulse">Loading cockpit...</div>;
+        return (
+            <div className="w-full min-h-[60vh] flex flex-col items-center justify-center space-y-4">
+                <div className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                <div className="font-mono text-[10px] tracking-widest text-primary/50 uppercase">
+                    Syncing...
+                </div>
+            </div>
+        );
     }
 
     return (
-        <div className="w-full" ref={containerRef}>
-            {/* Header Area with Children (PageHeader) and Actions */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 shrink-0">
-                <div className="flex-1 min-w-0">
-                    {children}
-                </div>
-
-                <div className="flex items-center gap-2 self-start sm:self-center">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="btn-press gap-2 border-primary/30 hover:border-primary/60 h-8">
-                                <Plus className="h-3.5 w-3.5 text-primary" />
-                                <span className="text-xs font-mono">Add Widget</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto border-border bg-card/95 backdrop-blur-xl z-50">
-                            {availableWidgets.map((widget) => (
-                                <DropdownMenuItem
-                                    key={widget.type + widget.title}
-                                    onClick={() => addWidget(widget.type, widget.title)}
-                                    className="font-mono text-xs cursor-pointer"
-                                >
-                                    {widget.title}
-                                </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </div>
-
-            {widgets.length === 0 ? (
-                <div className="card-surface p-12 text-center border-dashed border-2 border-border/50">
-                    <p className="text-muted-foreground mb-4">Canvas Empty</p>
-                    <Button variant="ghost" onClick={() => addWidget(availableWidgets[0]?.type || "text", availableWidgets[0]?.title || "Widget")}>
-                        Start Building
-                    </Button>
-                </div>
-            ) : (
-                <ReactGridLayout
-                    className="layout"
-                    layout={layouts}
-                    cols={12}
-                    rowHeight={80} // Reduced height density for finer control
-                    width={containerWidth}
-                    onLayoutChange={handleLayoutChange}
-                    draggableHandle=".drag-handle"
-                    margin={[16, 16]}
-                    isResizable={true}
-                    isDraggable={true}
-                    resizeHandles={['s', 'w', 'e', 'n', 'sw', 'nw', 'se', 'ne']}
-                >
-                    {widgets.map(w => {
-                        const Component = widgetComponents[w.type] || (() => <div>Unknown Widget</div>);
-                        const dims = getWidgetDimensions(w.id);
-                        const layout = layouts.find(l => l.i === w.id);
-
-                        return (
-                            <div key={w.id}>
-                                <WidgetFrame
-                                    id={w.id}
-                                    title={w.title}
-                                    onRemove={removeWidget}
-                                    isCompact={dims.isCompact}
-                                    isFullWidth={layout?.w === 12}
-                                    onToggleFullWidth={toggleFullWidth}
-                                >
-                                    <Component compact={dims.isCompact} />
-                                </WidgetFrame>
+        <div className="w-full h-full" ref={containerRef}>
+            <AnimatePresence mode="wait">
+                {containerWidth > 0 && !loading && (
+                    <motion.div
+                        key={pageId}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.35, ease: "linear" }}
+                        className="w-full"
+                    >
+                        {/* Header Area with Children (PageHeader) and Actions */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 shrink-0">
+                            <div className="flex-1 min-w-0">
+                                {children}
                             </div>
-                        );
-                    })}
-                </ReactGridLayout>
-            )}
+
+                            {!locked && (
+                                <div className="flex items-center gap-2 self-start sm:self-center">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="outline" size="sm" className="btn-press gap-2 border-primary/30 hover:border-primary/60 h-8">
+                                                <Plus className="h-3.5 w-3.5 text-primary" />
+                                                <span className="text-xs font-mono">Add Widget</span>
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto border-border bg-card/95 backdrop-blur-xl z-50">
+                                            {availableWidgets.map((widget) => (
+                                                <DropdownMenuItem
+                                                    key={widget.type + widget.title}
+                                                    onClick={() => addWidget(widget.type, widget.title)}
+                                                    className="font-mono text-xs cursor-pointer"
+                                                >
+                                                    {widget.title}
+                                                </DropdownMenuItem>
+                                            ))}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+                            )}
+                        </div>
+
+                        {widgets.length === 0 ? (
+                            <div className="card-surface p-12 text-center border-dashed border-2 border-border/50">
+                                <p className="text-muted-foreground mb-4">Canvas Empty</p>
+                                {!locked && (
+                                    <Button variant="ghost" onClick={() => addWidget(availableWidgets[0]?.type || "text", availableWidgets[0]?.title || "Widget")}>
+                                        Start Building
+                                    </Button>
+                                )}
+                            </div>
+                        ) : (
+                            <ReactGridLayout
+                                className="layout"
+                                layout={layouts.map(l => ({ ...l, static: locked }))}
+                                cols={12}
+                                rowHeight={80}
+                                width={containerWidth}
+                                onLayoutChange={handleLayoutChange}
+                                draggableHandle={locked ? undefined : ".drag-handle"}
+                                margin={[16, 16]}
+                                isResizable={!locked}
+                                isDraggable={!locked}
+                                resizeHandles={['s', 'w', 'e', 'n', 'sw', 'nw', 'se', 'ne']}
+                                // Crucial: Disable initial animation to prevent "moving"
+                                useCSSTransforms={containerWidth > 0}
+                            >
+                                {widgets.map(w => {
+                                    const Component = widgetComponents[w.type] || (() => <div className="p-4">Unknown Widget: {w.type}</div>);
+                                    const dims = getWidgetDimensions(w.id);
+                                    const layout = layouts.find(l => l.i === w.id);
+
+                                    return (
+                                        <div key={w.id}>
+                                            <WidgetFrame
+                                                id={w.id}
+                                                title={w.title}
+                                                onRemove={removeWidget}
+                                                isCompact={dims.isCompact}
+                                                isFullWidth={layout?.w === 12}
+                                                onToggleFullWidth={toggleFullWidth}
+                                                locked={locked}
+                                            >
+                                                <Component compact={dims.isCompact} />
+                                            </WidgetFrame>
+                                        </div>
+                                    );
+                                })}
+                            </ReactGridLayout>
+                        )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

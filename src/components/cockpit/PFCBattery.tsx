@@ -1,20 +1,26 @@
 import { useState, useEffect } from "react";
 import { Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { healthService } from "@/services/health";
 
 export const PFCBattery = () => {
-  const [wakeTime] = useState(() => {
-    const now = new Date();
-    now.setHours(7, 0, 0, 0);
-    return now;
+  const { data: wakeTime = (() => {
+    const d = new Date();
+    d.setHours(7, 0, 0, 0);
+    return d;
+  })() } = useQuery({
+    queryKey: ['wakeTime'],
+    queryFn: () => healthService.getWakeTime(new Date()),
+    refetchInterval: 1000 * 60 * 60, // Refetch every hour
   });
 
   const deepWorkSessions = 2;
   const nsdrSessions = 1;
 
-  const calculateBattery = () => {
+  const calculateBattery = (currentWakeTime: Date) => {
     const now = new Date();
-    const hoursAwake = (now.getTime() - wakeTime.getTime()) / (1000 * 60 * 60);
+    const hoursAwake = (now.getTime() - currentWakeTime.getTime()) / (1000 * 60 * 60);
 
     const baseDecay = hoursAwake * 5;
     const deepWorkDecay = deepWorkSessions * 10;
@@ -23,15 +29,15 @@ export const PFCBattery = () => {
     return Math.max(0, Math.min(100, 100 - baseDecay - deepWorkDecay + nsdrRecharge));
   };
 
-  const [battery, setBattery] = useState(calculateBattery);
+  const [battery, setBattery] = useState(() => calculateBattery(wakeTime));
 
   useEffect(() => {
-    setBattery(calculateBattery());
+    setBattery(calculateBattery(wakeTime));
     const interval = setInterval(() => {
-      setBattery(calculateBattery());
+      setBattery(calculateBattery(wakeTime));
     }, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [wakeTime]);
 
   const getZone = () => {
     if (battery >= 70) return { label: "DEEP WORK", color: "text-emerald-400", bg: "bg-emerald-500", glow: "#10b981" };
