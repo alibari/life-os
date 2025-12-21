@@ -34,30 +34,45 @@ async function ingestData() {
     const records = [];
 
     for (const metric of metrics) {
-        const { name, units, data: points } = metric;
+        const { name: rawName, units, data: points } = metric;
+        const name = normalizeMetricName(rawName);
 
         if (!points) continue;
 
-        console.log(`Processing metric: ${name} (${points.length} points)`);
+        console.log(`Processing metric: ${name} (from ${rawName}) - ${points.length} points`);
 
         for (const point of points) {
             if (point.qty === null || point.qty === undefined) continue;
 
-            // Manual parsing for "2025-09-23 6:12:00 PM +0200" to ensure correctness
-            // But new Date() usually handles this format in Node too.
             records.push({
                 metric_name: name,
                 unit: units,
                 value: point.qty,
-                source: point.source || 'Unknown Source',
-                recorded_at: new Date(point.date).toISOString()
+                source: point.source || 'Auto Export CLI',
+                recorded_at: cleanDate(point.date)
             });
         }
     }
 
+    function normalizeMetricName(name) {
+        if (name.includes("heart_rate_variability")) return "heart_rate_variability";
+        if (name.includes("resting_heart_rate")) return "resting_heart_rate";
+        if (name.includes("step_count")) return "step_count";
+        if (name.includes("active_energy")) return "active_energy";
+        if (name.includes("sleep")) return "sleep_duration";
+        if (name.includes("respiratory_rate")) return "respiratory_rate";
+        return name;
+    }
+
+    function cleanDate(dateStr) {
+        const sanitized = dateStr.replace(/\u202F/g, ' ');
+        const date = new Date(sanitized);
+        return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+    }
+
     console.log(`Total records to insert: ${records.length}`);
 
-    const chunkSize = 100;
+    const chunkSize = 500;
     for (let i = 0; i < records.length; i += chunkSize) {
         const chunk = records.slice(i, i + chunkSize);
         const { error } = await supabase.from('health_metrics').upsert(chunk);
