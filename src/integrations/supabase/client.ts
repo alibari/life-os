@@ -2,13 +2,25 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://uimwgahuyddlscmwfdac.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  console.error("Missing Supabase Environment Variables");
+  // Render a visible error on the screen if variables are missing
+  const root = document.getElementById("root");
+  if (root) {
+    root.innerHTML = `
+      <div style="color: red; padding: 20px; font-family: monospace;">
+        <h1>Configuration Error</h1>
+        <p>Missing Environment Variables.</p>
+        <p>Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set.</p>
+      </div>
+    `;
+  }
+}
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY || "", {
   auth: {
     storage: localStorage,
     persistSession: true,
