@@ -1,30 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Shield, Activity, Database, Cpu, RefreshCw, Calculator, Info, UploadCloud, Save, Check } from "lucide-react";
-import { healthService, HealthMetric } from "@/services/health";
+import { Shield, Activity, Database, Cpu, RefreshCw, Calculator, Info, UploadCloud, Copy, FileJson, Check } from "lucide-react";
+import { healthService } from "@/services/health";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 export default function Settings() {
     const { strictMode, setStrictMode } = useSystemSettings();
-
-    // Auto Export State
-    const [exportUrl, setExportUrl] = useState(() => localStorage.getItem("auto_export_url") || "");
-    const [exportKey, setExportKey] = useState(() => localStorage.getItem("auto_export_key") || "");
-    const [exportType, setExportType] = useState(() => localStorage.getItem("auto_export_type") || "rest_api");
-
-    const saveExportSettings = () => {
-        localStorage.setItem("auto_export_url", exportUrl);
-        localStorage.setItem("auto_export_key", exportKey);
-        localStorage.setItem("auto_export_type", exportType);
-        toast.success("Auto-Export configuration saved locally.");
-    };
 
     // 1. Hardware Metadata
     const { data: sources } = useQuery({
@@ -47,18 +34,111 @@ export default function Settings() {
 
     const [activeTab, setActiveTab] = useState("automation");
 
+    // Bulk Ingest State
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [processedCount, setProcessedCount] = useState(0);
+    const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+
+    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        setUploadProgress(0);
+        setProcessedCount(0);
+        setUploadStatus("Initializing Reader...");
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                setUploadStatus("Reading File Content...");
+                const json = JSON.parse(e.target?.result as string);
+                const metrics = json.data?.metrics || [];
+
+                if (metrics.length === 0) {
+                    setUploadStatus("Error: No metrics found in file.");
+                    setIsUploading(false);
+                    return;
+                }
+
+                setUploadStatus("Parsing & Normalizing Data...");
+                const recordsToInsert: any[] = [];
+
+                metrics.forEach((m: any) => {
+                    const metricName = normalizeMetricName(m.name);
+                    const unit = m.units;
+
+                    if (m.data && Array.isArray(m.data)) {
+                        m.data.forEach((dp: any) => {
+                            recordsToInsert.push({
+                                metric_name: metricName,
+                                value: dp.qty !== undefined ? dp.qty : dp.value,
+                                unit: unit || "unit",
+                                source: dp.source || "Auto Export Bulk",
+                                recorded_at: cleanDate(dp.date)
+                            });
+                        });
+                    }
+                });
+
+                if (recordsToInsert.length === 0) {
+                    throw new Error("No data points found in metrics.");
+                }
+
+                setUploadStatus(`Injecting ${recordsToInsert.length.toLocaleString()} records into Reservoir...`);
+
+                await healthService.bulkInsert(recordsToInsert, (count) => {
+                    setProcessedCount(count);
+                    setUploadProgress(Math.floor((count / recordsToInsert.length) * 100));
+                });
+
+                setUploadStatus(`Ingest Complete: ${recordsToInsert.length.toLocaleString()} records synched.`);
+                toast.success("Bulk Ingest Successful");
+                refetchFeed();
+            } catch (err) {
+                console.error("Upload error:", err);
+                setUploadStatus(`Error: ${err instanceof Error ? err.message : 'Invalid JSON structure'}`);
+            } finally {
+                setIsUploading(false);
+            }
+        };
+        reader.onerror = () => {
+            setUploadStatus("Error reading file.");
+            setIsUploading(false);
+        };
+        reader.readAsText(file);
+    };
+
+    const normalizeMetricName = (name: string) => {
+        if (name.includes("heart_rate_variability")) return "heart_rate_variability";
+        if (name.includes("resting_heart_rate")) return "resting_heart_rate";
+        if (name.includes("step_count")) return "step_count";
+        if (name.includes("active_energy")) return "active_energy";
+        if (name.includes("sleep")) return "sleep_duration";
+        if (name.includes("respiratory_rate")) return "respiratory_rate";
+        return name;
+    };
+
+    const cleanDate = (dateStr: string) => {
+        // Handle "2025-09-23 6:12:00 PM +0200"
+        const sanitized = dateStr.replace(/\u202F/g, ' ');
+        const date = new Date(sanitized);
+        return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+    };
+
     // Tab Components
     const TabButton = ({ id, label, icon: Icon }: { id: string, label: string, icon: any }) => (
         <button
             onClick={() => setActiveTab(id)}
             className={cn(
-                "flex items-center gap-2 px-4 py-2 text-xs font-mono tracking-wider uppercase border-b-2 transition-colors",
+                "flex items-center gap-2 px-4 py-2 text-[10px] font-mono tracking-widest uppercase border-b-2 transition-all duration-300",
                 activeTab === id
                     ? "border-primary text-primary bg-primary/5"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:bg-white/5"
             )}
         >
-            <Icon className="h-3.5 w-3.5" />
+            <Icon className={cn("h-3.5 w-3.5", activeTab === id ? "animate-pulse" : "")} />
             {label}
         </button>
     );
@@ -67,82 +147,105 @@ export default function Settings() {
         <div className="min-h-screen pt-8 px-6 pb-20 cockpit-canvas flex flex-col gap-6">
             <PageHeader
                 title="CONTROL CENTER"
-                subtitle="SYSTEM INTEGRITY & AUTOMATION"
+                subtitle="SYSTEM INTEGRITY & DATA INTAKE"
                 icon={Shield}
                 className="w-full"
             />
 
             {/* TABS HEADER */}
-            <div className="flex border-b border-border/50">
-                <TabButton id="automation" label="Automation" icon={UploadCloud} />
-                <TabButton id="data-in" label="Data Sources" icon={RefreshCw} />
+            <div className="flex border-b border-white/10">
+                <TabButton id="automation" label="Ingest" icon={UploadCloud} />
+                <TabButton id="data-in" label="Sources" icon={RefreshCw} />
                 <TabButton id="intelligence" label="Intelligence" icon={Calculator} />
-                <TabButton id="system" label="System Health" icon={Database} />
+                <TabButton id="system" label="Integrity" icon={Database} />
             </div>
 
             {/* TAB CONTENT */}
-            <div className="min-h-[400px]">
+            <div className="min-h-[500px]">
 
-                {/* --- AUTOMATION TAB --- */}
+                {/* --- INGEST TAB --- */}
                 {activeTab === "automation" && (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-2xl">
-                        {/* AUTO EXPORT AUTOMATION */}
-                        <div className="card-surface p-6 flex flex-col gap-4 border-blue-500/20 bg-blue-500/5">
+                        <div className="card-surface p-6 flex flex-col gap-6 border-primary/20 bg-primary/5">
                             <div className="flex items-center gap-3">
-                                <UploadCloud className="h-5 w-5 text-blue-500" />
-                                <h3 className="font-mono text-sm tracking-widest uppercase">Auto Export Automation</h3>
+                                <FileJson className="h-5 w-5 text-primary" />
+                                <h3 className="font-mono text-sm tracking-widest uppercase">Manual Data Reservoir Bulk Ingest</h3>
                             </div>
+
                             <div className="space-y-4">
-                                <div className="bg-blue-500/10 p-3 rounded border border-blue-500/20 text-[10px] font-mono whitespace-pre-line text-blue-200">
-                                    1. Open "Auto Export" on iPhone.{"\n"}
-                                    2. Create new Automation &gt; "API Export".{"\n"}
-                                    3. Copy the Endpoint URL below.{"\n"}
-                                    4. **Critical**: In Supabase Dashboard &gt; Settings &gt; Edge Functions &gt; Secrets, add `INGEST_SECRET`.{"\n"}
-                                    5. In Auto Export, add Header: `x-life-os-key` : (your secret value).
-                                </div>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                    Import comprehensive health data from the <strong>Auto Export</strong> iOS app.
+                                    Upload the generated JSON file here to populate your Reservoir.
+                                </p>
 
-                                <div className="space-y-2">
-                                    <Label className="text-[10px] uppercase font-mono text-muted-foreground">Endpoint URL (POST)</Label>
-                                    <div className="flex gap-2">
-                                        <Input
-                                            readOnly
-                                            className="bg-black/40 border-white/10 font-mono text-xs h-9 text-blue-300"
-                                            value="https://uimwgahuyddlscmwfdac.supabase.co/functions/v1/ingest-health-metrics"
-                                        />
-                                        <Button size="icon" variant="outline" className="h-9 w-9 shrink-0 border-white/10" onClick={() => {
-                                            navigator.clipboard.writeText("https://uimwgahuyddlscmwfdac.supabase.co/functions/v1/ingest-health-metrics");
-                                            toast.success("URL Copied");
-                                        }}>
-                                            <Save className="h-3.5 w-3.5 rotate-0 scale-100 transition-all" />
-                                            <span className="sr-only">Copy</span>
-                                        </Button>
+                                <div className="p-8 border-2 border-dashed border-white/10 rounded-xl bg-black/40 flex flex-col items-center justify-center gap-4 group hover:border-primary/40 transition-colors relative transition-all">
+                                    <input
+                                        type="file"
+                                        accept=".json"
+                                        onChange={handleFileUpload}
+                                        disabled={isUploading}
+                                        className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                    />
+                                    <div className="p-4 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                                        <UploadCloud className="h-8 w-8 text-primary" />
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="font-mono text-xs uppercase tracking-wider text-white">
+                                            {isUploading ? "Processing..." : "Select JSON Export"}
+                                        </p>
+                                        <p className="text-[10px] text-muted-foreground mt-1">
+                                            Maximum handled: 100,000+ records per file
+                                        </p>
                                     </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <Label className="text-[10px] uppercase font-mono text-muted-foreground">Authorization Header</Label>
-                                    <div className="flex gap-2">
-                                        <Input
-                                            readOnly
-                                            type="text"
-                                            className="bg-black/40 border-white/10 font-mono text-xs h-9 text-muted-foreground"
-                                            value="Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpbXdnYWh1eWRkbHNjbXdmZGFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYyNDg3NjcsImV4cCI6MjA4MTgyNDc2N30.vx0ZV0DqY8grbAJ21RP3eTk88MKfHT2PkOVVThGfzRs"
-                                        />
-                                        <Button size="icon" variant="outline" className="h-9 w-9 shrink-0 border-white/10" onClick={() => {
-                                            navigator.clipboard.writeText("Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpbXdnYWh1eWRkbHNjbXdmZGFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYyNDg3NjcsImV4cCI6MjA4MTgyNDc2N30.vx0ZV0DqY8grbAJ21RP3eTk88MKfHT2PkOVVThGfzRs");
-                                            toast.success("Header Copied");
-                                        }}>
-                                            <Save className="h-3.5 w-3.5 rotate-0 scale-100 transition-all" />
-                                            <span className="sr-only">Copy</span>
-                                        </Button>
+                                {isUploading && (
+                                    <div className="space-y-3 p-4 bg-black/60 rounded-lg border border-primary/20">
+                                        <div className="flex justify-between text-[10px] font-mono text-primary uppercase">
+                                            <span>{uploadStatus}</span>
+                                            <span>{uploadProgress}%</span>
+                                        </div>
+                                        <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                                            <motion.div
+                                                className="h-full bg-primary shadow-[0_0_12px_rgba(var(--primary-rgb),0.6)]"
+                                                animate={{ width: `${uploadProgress}%` }}
+                                            />
+                                        </div>
+                                        <div className="flex justify-between text-[9px] font-mono text-muted-foreground">
+                                            <span>BATCH PROCESSING MODE</span>
+                                            <span>{processedCount.toLocaleString()} Pts</span>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
+
+                                {uploadStatus && !isUploading && (
+                                    <div className={cn(
+                                        "p-3 rounded-lg border text-[10px] font-mono uppercase text-center flex items-center justify-center gap-2",
+                                        uploadStatus.includes("Error")
+                                            ? "bg-destructive/10 border-destructive/20 text-destructive"
+                                            : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                                    )}>
+                                        {!uploadStatus.includes("Error") && <Check className="h-3 w-3" />}
+                                        {uploadStatus}
+                                    </div>
+                                )}
                             </div>
+                        </div>
+
+                        <div className="p-4 bg-white/5 rounded-lg border border-white/10 opacity-60">
+                            <h4 className="text-[10px] font-mono uppercase tracking-widest mb-2 flex items-center gap-2">
+                                <Info className="h-3 w-3" /> Requirements
+                            </h4>
+                            <ul className="text-[10px] text-muted-foreground space-y-1 list-disc pl-4">
+                                <li>File must be in .json format</li>
+                                <li>Exported from "Auto Export" via "Export data as JSON"</li>
+                                <li>System handles automated normalization to Scientific Registry</li>
+                            </ul>
                         </div>
                     </motion.div>
                 )}
 
-                {/* --- DATA SOURCES TAB --- */}
+                {/* --- DATA SOURCES (SOURCES) TAB --- */}
                 {activeTab === "data-in" && (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* BIO-SYNC FEED */}
@@ -172,18 +275,24 @@ export default function Settings() {
                                             <span className="text-muted-foreground/40 shrink-0">
                                                 [{new Date(log.recorded_at).toLocaleTimeString([], { hour12: false })}]
                                             </span>
-                                            <span className="text-primary uppercase shrink-0 w-24">
+                                            <span className="text-primary uppercase shrink-0 w-24 truncate">
                                                 {log.metric_name.replace(/_/g, ' ')}
                                             </span>
                                             <span className="text-white font-bold shrink-0 w-16">
                                                 {Number(log.value).toFixed(2)}
                                             </span>
                                             <span className="text-muted-foreground/60 italic truncate">
-                                                via {log.source === "Unknown Source" ? "Apple Watch" : log.source}
+                                                via {log.source}
                                             </span>
                                         </motion.div>
                                     ))}
                                 </AnimatePresence>
+                                {(!feed || feed.length === 0) && (
+                                    <div className="h-full flex flex-col items-center justify-center gap-2 opacity-30">
+                                        <Database className="h-8 w-8" />
+                                        <span className="text-[10px] uppercase tracking-widest">No Pulse Detected</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -195,14 +304,17 @@ export default function Settings() {
                             </div>
                             <div className="space-y-3">
                                 {sources?.map((s, i) => (
-                                    <div key={i} className="flex justify-between items-center bg-black/40 p-3 rounded border border-white/5">
+                                    <div key={i} className="flex justify-between items-center bg-black/40 p-3 rounded border border-white/5 group hover:border-primary/30 transition-colors">
                                         <span className="text-[10px] font-mono text-muted-foreground uppercase">Device ID</span>
                                         <span className="text-xs font-mono text-primary truncate max-w-[150px]">{s}</span>
                                     </div>
                                 ))}
                                 <div className="flex justify-between items-center bg-black/40 p-3 rounded border border-white/5">
                                     <span className="text-[10px] font-mono text-muted-foreground uppercase">Status</span>
-                                    <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-tighter">Verified & Linked</span>
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                        <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-tighter">Verified & Linked</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -212,7 +324,6 @@ export default function Settings() {
                 {/* --- INTELLIGENCE TAB --- */}
                 {activeTab === "intelligence" && (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl">
-                        {/* BIO-LOGIC FORMULA (SCIENTIFIC VIEW) */}
                         <div className="card-surface p-6 flex flex-col gap-4 border-white/10 bg-white/5">
                             <div className="flex items-center gap-3">
                                 <Calculator className="h-5 w-5 text-muted-foreground" />
@@ -224,7 +335,6 @@ export default function Settings() {
                                         <span className="text-xs font-mono text-primary uppercase tracking-wider">Readiness Score</span>
                                         <span className="text-[10px] font-mono text-muted-foreground">V 2.1</span>
                                     </div>
-                                    {/* Interactive Formula Representation */}
                                     <div className="text-xs font-mono leading-loose text-muted-foreground bg-white/5 p-4 rounded border border-white/5">
                                         <span className="text-white">recovery_score</span> = <br />
                                         &nbsp;&nbsp;((<span className="text-destructive">hrv</span> - 30) / 70) * <span className="bg-primary/20 text-white px-1.5 rounded mx-0.5">0.50</span> + <br />
@@ -233,7 +343,7 @@ export default function Settings() {
                                     <div className="flex items-center gap-2 pt-2 border-t border-white/5">
                                         <Info className="h-3.5 w-3.5 text-primary/40" />
                                         <span className="text-[10px] font-mono text-muted-foreground">
-                                            Formula is hardcoded in `MetricRepository.ts`. To change weights, create a new PR.
+                                            Formula constants are governed by the Scientific Registry found in the source code.
                                         </span>
                                     </div>
                                 </div>
@@ -242,10 +352,9 @@ export default function Settings() {
                     </motion.div>
                 )}
 
-                {/* --- SYSTEM HEALTH TAB --- */}
+                {/* --- INTEGRITY TAB --- */}
                 {activeTab === "system" && (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                        {/* SYSTEM HEALTH / STRICT MODE */}
                         <div className="card-surface p-6 flex flex-col gap-4 border-destructive/20 bg-destructive/5 max-w-2xl">
                             <div className="flex items-center gap-3">
                                 <Shield className="h-5 w-5 text-destructive" />
@@ -270,13 +379,9 @@ export default function Settings() {
                                         )} />
                                     </button>
                                 </div>
-                                <p className="text-[10px] font-mono text-muted-foreground border-l-2 border-destructive/30 pl-3 py-1">
-                                    [WARNING] ENABLING STRICT MODE WILL SHOW 'DATA GAP' IF SENSORS ARE DISCONNECTED.
-                                </p>
                             </div>
                         </div>
 
-                        {/* DATA RESERVOIR (FULL WIDTH) */}
                         <div className="card-surface p-6 border-primary/20 bg-black/40">
                             <div className="flex items-center gap-3 mb-6">
                                 <Database className="h-5 w-5 text-primary" />
@@ -284,7 +389,11 @@ export default function Settings() {
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                {audit?.map((item: any) => (
+                                {auditLoading ? (
+                                    <div className="col-span-full h-32 flex items-center justify-center font-mono text-xs animate-pulse opacity-50">
+                                        Analyzing Reservoir...
+                                    </div>
+                                ) : audit?.map((item: any) => (
                                     <div key={item.name} className="flex flex-col gap-3 p-4 bg-white/5 rounded-lg border border-white/5 group hover:border-primary/40 transition-colors">
                                         <div className="flex justify-between items-start">
                                             <span className="text-[10px] font-mono text-muted-foreground uppercase truncate pr-2">
@@ -312,7 +421,7 @@ export default function Settings() {
                                         <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
                                             <motion.div
                                                 initial={{ width: 0 }}
-                                                animate={{ width: `${Math.min(100, (item.count / 100000) * 100)}%` }}
+                                                animate={{ width: `${Math.min(100, (item.count / 10000) * 100)}%` }}
                                                 className="h-full bg-primary shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]"
                                             />
                                         </div>
@@ -322,7 +431,6 @@ export default function Settings() {
                         </div>
                     </motion.div>
                 )}
-
             </div>
         </div>
     );

@@ -167,5 +167,25 @@ export const healthService = {
         if (error) return ["Unknown Device"];
         const uniqueSources = Array.from(new Set(data.map(d => d.source)));
         return uniqueSources.length > 0 ? uniqueSources : ["Unknown Device"];
+    },
+
+    async bulkInsert(metrics: any[], onProgress?: (count: number) => void) {
+        const BATCH_SIZE = 500;
+        let processed = 0;
+
+        for (let i = 0; i < metrics.length; i += BATCH_SIZE) {
+            const batch = metrics.slice(i, i + BATCH_SIZE);
+            const { error } = await supabase
+                .from("health_metrics")
+                .insert(batch);
+
+            if (error) {
+                console.error("Batch insert error:", error);
+                throw error;
+            }
+
+            processed += batch.length;
+            if (onProgress) onProgress(processed);
+        }
     }
 };
