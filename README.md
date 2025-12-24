@@ -1,57 +1,69 @@
-# Life OS - Personal Operating System (V2)
+# Life OS (V3) - Technical Documentation
 
-**Life OS** is a futuristic, glassmorphic personal dashboard designed to optimize human performance. It integrates flow state tracking, bio-data analysis, and long-term strategic planning into a single, conscious interface.
+> **Strictly for Developers.** This branch (V3) implements the new **Habit Snapshot Engine** and **Protocol-Based Metrics**.
 
-## 🚀 Features
+## 1. Technical Architecture
 
-### 🧠 Flow State Cortex
-- **Neuro-Flow Timer**: Customizable 90-minute ultradian rhythm cycles.
-- **Protocol Tracking**: Step-by-step guidance for entering flow.
-- **Session Analytics**: AI-driven insights into your focus patterns.
+### Stack
+- **Frontend**: React 18 (Vite)
+- **Language**: TypeScript
+- **State Management**: `@tanstack/react-query` (Server State) + React Context (Client State)
+- **Styling**: Tailwind CSS + `shadcn/ui` (Radix Primitives)
+- **Backend / Database**: Supabase (PostgreSQL 15)
 
-### 🧬 The Lab (Bio-Data)
-- **Recovery Vitals**: Visualizes HRV, Sleep, and Resting Heart Rate.
-- **Circadian Clock**: Real-time tracking of your biological rhythm.
-- **Neuro-Chemical Estimates**: Visual representations of Dopamine and Adenosine levels.
-
-### ⭐ North Star Strategy
-- **10-Year Vision Board**: Long-term alignment tracking.
-- **Quarterly Objectives**: Breakdown of high-level goals.
-- **Daily Alignment**: Metrics to ensure your day matches your life mission.
-
-### 🖥️ System Architecture
-- **Conscious Boot Sequence**: Immersive "System Boot" animation on load.
-- **Glassmorphism UI**: Premium, dark-mode aesthetic with real-time blur effects.
-- **Responsive Grid**: Draggable, resizable widget system (`react-grid-layout`).
-
-## 🛠️ Tech Stack
-- **Framework**: React + Vite
-- **Styling**: Tailwind CSS + Shadcn UI
-- **Icons**: Lucide React
-- **Animation**: Framer Motion
-- **State Management**: React Query + Context API
-
-## 📦 Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/your-username/life-os.git
-   cd life-os
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Start the Neural Link (Dev Server)**
-   ```bash
-   npm run dev
-   ```
-
-## 🔒 Security
-- This project uses Supabase for authentication.
-- **Environment Variables**: Ensure you create a `.env` file with your `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+### Key Architectural Decisions
+- **Optimistic UI**: The app uses `react-query` to cache data but forces aggressive invalidation on mutations to ensure data consistency with the DB.
+- **Client-Side Compute**: Metrics like "Neuroplasticity Index" and "System Load" are calculated client-side to reduce DB load, leveraging the `habitService` layer.
+- **Edge Deployment**: Designed to run on Vercel/Netlify with connection to Supabase.
 
 ---
-*System.v2.1.0 // ONLINE*
+
+## 2. Database Schema (PostgreSQL)
+
+The core logic revolves around the `habits` (Protocol) and `habit_logs` (Execution) tables.
+
+### `public.habits` (The Protocol)
+Defines the "Ideal State" or the plan.
+| Column | Type | Description |
+| :--- | :--- | :--- |
+| `id` | UUID | Primary Key |
+| `user_id` | UUID | Foreign Key -> `auth.users` |
+| `name` | TEXT | Display name |
+| `energy_cost` | INT | Bio-cost (1-10) for System Load calc |
+| `impact_score` | INT | Contribution to Neuroplasticity (1-10) |
+| `reward_pathway`| TEXT | e.g., 'dopamine_drive', 'serotonin_peace' |
+| `is_active` | BOOL | Soft delete / Paused state |
+
+### `public.habit_logs` (The Execution)
+Implements the **Snapshot Pattern** to preserve history even if the Protocol changes.
+- **Constraint**: `UNIQUE(user_id, habit_id, completed_at)` enforces "One Log Per Day".
+
+| Column | Type | Description |
+| :--- | :--- | :--- |
+| `id` | UUID | Primary Key |
+| `completed_at` | TIMESTAMPTZ | Normalized to Midnight UTC (T00:00:00Z) |
+| `energy_cost_snapshot` | INT | **[V3 New]** Copy of `habits.energy_cost` at time of log |
+| `impact_score_snapshot` | INT | **[V3 New]** Copy of `habits.impact_score` at time of log |
+| `reward_pathway_snapshot`| TEXT | **[V3 New]** Copy of `habits.reward_pathway` at time of log |
+
+### Ancillary Tables
+- `health_metrics`: Stores 'Sleep Score', 'HRV', 'Readiness' (imported from Oura/Whoop).
+- `experiments`: Tracks temporary interventions (e.g., "No Caffeine Week").
+
+## 3. Core Mechanisms
+
+### A. The Snapshot Engine
+When a use completes a habit, we do **not** just link to the habit ID. We **snapshot** the critical metadata (`energy_cost`, etc.) into the log.
+- **Why?** If the user changes a habit from "Easy" (Cost 1) to "Hard" (Cost 10) next month, their historical data from today should still read "Cost 1".
+- **Implementation**: See `habitService.logHabit()`.
+
+### B. Protocol-Based Metrics (V3)
+Dashboard metrics allow the user to see the "Big Picture" of their design.
+- **Daily System Load**: Sum of `energy_cost` of all **Active Habits**. (Predicted Load).
+- **Rewards Profile**: Distribution of `reward_pathway` of all **Active Habits**. (Designed Chemistry).
+- **Neuroplasticity**: Weighted average of **Streaks** (Execution-based).
+
+## 4. Security (RLS)
+Row Level Security is ENABLED on all tables.
+- **Start Up**: `npm run dev`
+- Policies ensure users can only Select/Insert/Update/Delete their **own** data (`auth.uid() = user_id`).
