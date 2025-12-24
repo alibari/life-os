@@ -65,7 +65,11 @@ function RingProgress({ value, max, strokeWidth = 8, color, label, unit, compact
     );
 }
 
+import { useScientificModel } from "@/hooks/useScientificModel";
+
 export function LabRecoveryVitals({ compact }: { compact?: boolean }) {
+    const { weights } = useScientificModel();
+
     // Fetch real HRV data (7-day average)
     const { data: hrvData } = useQuery({
         queryKey: ['health-metric', 'heart_rate_variability'],
@@ -85,11 +89,14 @@ export function LabRecoveryVitals({ compact }: { compact?: boolean }) {
     const avgRHR = rhrData ? Math.round(rhrData) : (strictMode ? 0 : 65);
     const isStale = (hrvData === null || rhrData === null) && strictMode;
 
-    // Recovery Score: Higher HRV + lower RHR = better recovery
+    // Recovery Score: Dynamic Formula
     // Normalize: HRV (30-100ms range), RHR (40-80bpm range)
     const recoveryScore = Math.min(
         100,
-        Math.max(0, ((avgHRV - 30) / 70) * 50 + ((80 - avgRHR) / 40) * 50)
+        Math.max(0,
+            ((avgHRV - 30) / 70) * (weights.recovery_hrv_weight * 100) +
+            ((80 - avgRHR) / 40) * (weights.recovery_rhr_weight * 100)
+        )
     );
 
     return (

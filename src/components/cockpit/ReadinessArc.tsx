@@ -1,9 +1,34 @@
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { mockReadinessData, getReadinessStatus } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
+import { useScientificModel } from "@/hooks/useScientificModel";
+import { useQuery } from "@tanstack/react-query";
+import { healthService } from "@/services/health";
 
 export function ReadinessArc() {
-  const { readinessScore, sleepQuality, hrv, morningMood } = mockReadinessData;
+  const { weights } = useScientificModel();
+
+  // Fetch Real Data
+  const { data: sleepData } = useQuery({ queryKey: ['readiness-sleep'], queryFn: () => healthService.getQuickAverage('sleep_duration', 3) });
+  const { data: hrvData } = useQuery({ queryKey: ['readiness-hrv'], queryFn: () => healthService.getQuickAverage('heart_rate_variability', 3) });
+
+  // Normalize Inputs (Sleep target: 8h = 480m, HRV target: 100ms)
+  const sleepScore = Math.min(100, ((sleepData || 0) / 480) * 100);
+  const hrvScore = Math.min(100, ((hrvData || 0) / 100) * 100);
+  const moodScore = 75; // TODO: Manual Input
+
+  // Dynamic Formula
+  const readinessScore = Math.round(
+    (sleepScore * weights.readiness_sleep_weight) +
+    (hrvScore * weights.readiness_hrv_weight) +
+    (moodScore * weights.readiness_mood_weight)
+  );
+
+  const getReadinessStatus = (score: number) => {
+    if (score >= 80) return { state: "anabolic", message: "PRIME STATE" };
+    if (score >= 50) return { state: "neutral", message: "MAINTENANCE" };
+    return { state: "catabolic", message: "RECOVERY NEEDED" };
+  };
+
   const status = getReadinessStatus(readinessScore);
 
   const data = [
@@ -76,19 +101,19 @@ export function ReadinessArc() {
       <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-border shrink-0">
         <div className="text-center">
           <p className="font-mono text-xl lg:text-2xl font-semibold text-foreground">
-            {sleepQuality}
+            {sleepData ? Math.round(sleepData / 60) + 'h' : '--'}
           </p>
           <p className="text-xs text-muted-foreground mt-1">SLEEP</p>
         </div>
         <div className="text-center">
           <p className="font-mono text-xl lg:text-2xl font-semibold text-foreground">
-            {hrv}
+            {hrvData ? Math.round(hrvData) : '--'}
           </p>
           <p className="text-xs text-muted-foreground mt-1">HRV</p>
         </div>
         <div className="text-center">
           <p className="font-mono text-xl lg:text-2xl font-semibold text-foreground">
-            {morningMood}
+            {moodScore}
           </p>
           <p className="text-xs text-muted-foreground mt-1">MOOD</p>
         </div>

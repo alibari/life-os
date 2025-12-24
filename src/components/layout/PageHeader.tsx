@@ -3,12 +3,13 @@ import { cn } from "@/lib/utils";
 interface PageHeaderProps {
     title: string;
     subtitle?: string; // e.g. "OCT 24 • WEDNESDAY"
+    description?: string;
     icon?: React.ElementType; // Optional icon
     className?: string;
     children?: React.ReactNode; // Extra actions
 }
 
-export function PageHeader({ title, subtitle, icon: Icon, className, children }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, description, icon: Icon, className, children }: PageHeaderProps) {
     return (
         <div className={cn("flex items-center justify-between mb-6 h-14 shrink-0 px-1", className)}>
             <div className="flex items-center gap-4">
@@ -27,6 +28,11 @@ export function PageHeader({ title, subtitle, icon: Icon, className, children }:
                     <h1 className="font-mono text-xl sm:text-2xl font-bold text-foreground tracking-tight leading-none">
                         {title}
                     </h1>
+                    {description && (
+                        <p className="text-xs text-muted-foreground mt-0.5 font-sans">
+                            {description}
+                        </p>
+                    )}
                 </div>
             </div>
 

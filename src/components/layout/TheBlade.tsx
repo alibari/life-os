@@ -1,19 +1,27 @@
 import { useLocation, Link, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  Gauge,
-  Waves,
+  LayoutDashboard,
+  Settings as SettingsIcon,
+  Activity,
   FlaskConical,
-  Star,
-  User,
-  Brain,
-  Eye,
-  Settings,
-  Shield,
   LogOut,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Zap,
+  UploadCloud,
+  Layers,
+  Database,
+  Eye,
+  User,
+  Brain,
+  Shield,
+  Loader2,
+  Gauge,
+  Waves,
+  Star,
+  Edit2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -22,8 +30,18 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useLens } from "@/context/LensContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface TheBladeProps {
   collapsed: boolean;
@@ -47,6 +65,32 @@ export function TheBlade({ collapsed, onToggle }: TheBladeProps) {
   const { user, signOut } = useAuth();
   const { currentLens, setLens } = useLens();
 
+  // Profile Edit State
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [profileName, setProfileName] = useState("");
+  const [loadingProfile, setLoadingProfile] = useState(false);
+
+  useEffect(() => {
+    if (user?.user_metadata?.full_name) {
+      setProfileName(user.user_metadata.full_name);
+    }
+  }, [user]);
+
+  const handleUpdateProfile = async () => {
+    setLoadingProfile(true);
+    const { error } = await supabase.auth.updateUser({
+      data: { full_name: profileName }
+    });
+    setLoadingProfile(false);
+    if (error) {
+      toast.error("Failed to update profile");
+    } else {
+      toast.success("Profile updated");
+      setIsProfileOpen(false);
+      window.location.reload();
+    }
+  };
+
   // Filter nav items: Hide 'Control Center' (Settings) in Focus Mode if strict visibility is requested.
   // User request: "in focus mode we hide the page control center its visible only in lab mode"
   const filteredNavItems = navItems.filter(item => {
@@ -64,150 +108,197 @@ export function TheBlade({ collapsed, onToggle }: TheBladeProps) {
   return (
     <aside
       className={cn(
-        "h-screen sticky top-0 flex flex-col border-r border-border bg-background transition-all duration-300 z-50",
-        collapsed ? "w-16" : "w-64"
+        "h-screen sticky top-0 flex flex-col border-r border-white/5 bg-black z-50 transition-all duration-300",
+        collapsed ? "w-20" : "w-64"
       )}
     >
-      {/* Logo */}
-      <div className="p-4 border-b border-border flex items-center justify-between h-14 shrink-0">
+      {/* Header */}
+      <div className="h-16 flex items-center justify-between px-6 border-b border-white/5">
         {!collapsed && (
-          <h1 className="font-mono text-sm tracking-wider">
-            <span className="text-primary">LIFE</span>
-            <span className="text-muted-foreground">_OS</span>
-          </h1>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex items-center gap-2"
+          >
+            <div className="h-2 w-2 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
+            <span className="font-mono text-xs font-bold tracking-[0.2em] text-white">
+              LIFE_OS
+            </span>
+          </motion.div>
         )}
         <Button
           variant="ghost"
           size="icon"
           onClick={onToggle}
-          className="h-8 w-8 btn-press"
+          className={cn("text-zinc-500 hover:text-white transition-colors", collapsed && "mx-auto")}
         >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
-          )}
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-        {filteredNavItems.map((item) => {
+      <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto scrollbar-none">
+        {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
 
-          const button = (
-            <button
-              key={item.path}
-              onClick={() => navigate(item.path)}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all btn-press group",
-                "hover:bg-card",
-                isActive && "bg-card border border-primary/30 glow-anabolic"
-              )}
-            >
-              <Icon
-                className={cn(
-                  "h-5 w-5 flex-shrink-0 transition-colors",
-                  isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
-                )}
-              />
-              {!collapsed && (
-                <div className="text-left min-w-0">
-                  <p
-                    className={cn(
-                      "font-mono text-xs tracking-wide truncate transition-colors",
-                      isActive ? "text-primary" : "text-foreground"
-                    )}
-                  >
-                    {item.label}
-                  </p>
-                </div>
-              )}
-            </button>
-          );
-
-          if (collapsed && !isActive) { // Only tooltip on collapsed
-            // Tooltip logic (omitted for brevity in replacement, but keeping standard structure)
+          if (collapsed) {
             return (
               <Tooltip key={item.path} delayDuration={0}>
-                <TooltipTrigger asChild>{button}</TooltipTrigger>
-                <TooltipContent side="right" className="font-mono text-xs z-[100]">
+                <TooltipTrigger asChild>
+                  <Link to={item.path}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn(
+                        "w-full h-10 mb-2 transition-colors duration-200",
+                        isActive
+                          ? "text-white bg-white/10"
+                          : "text-zinc-500 hover:text-white"
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </Button>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-black border border-white/10 text-white font-mono text-xs">
                   {item.label}
                 </TooltipContent>
               </Tooltip>
             );
           }
 
-          return button;
+          return (
+            <Link key={item.path} to={item.path}>
+              <Button
+                variant="ghost"
+                className={cn(
+                  "w-full justify-start h-10 px-4 mb-1 transition-colors duration-200 uppercase tracking-wider",
+                  isActive
+                    ? "bg-white/5 text-white font-bold"
+                    : "text-zinc-500 hover:text-white hover:bg-white/5"
+                )}
+              >
+                <Icon className={cn("h-4 w-4 mr-3", isActive ? "text-white" : "text-zinc-600 group-hover:text-white")} />
+                <span className="font-mono text-[10px]">
+                  {item.label}
+                </span>
+              </Button>
+            </Link>
+          );
         })}
       </nav>
 
-      {/* Lens Switcher (Fluid Intelligence) */}
-      {/* Lens Switcher (Premium Minimalist Toggle) */}
-      {!collapsed && (
-        <div className="px-4 py-4 border-t border-border/40">
-          <div className="relative flex items-center bg-muted/30 rounded-full p-1 h-8">
-            {/* Sliding Background - Clean Card Look */}
-            <motion.div
-              className="absolute top-1 bottom-1 bg-background rounded-full shadow-sm z-0"
-              initial={false}
-              animate={{
-                x: currentLens === "focus" ? 0 : "100%",
-                width: "50%"
-              }}
-              transition={{ type: "spring", stiffness: 500, damping: 30 }}
-            />
+      {/* Spacer */}
+      <div className="flex-1" />
 
+      {/* Footer Controls: Profile + Lens + SignOut */}
+      <div className="p-4 space-y-4 border-t border-white/5">
+
+        {/* Sleek Segmented Lens Switcher - Minimalist Black/Gray */}
+        {!collapsed && (
+          <div className="relative flex h-8 items-center rounded-md bg-zinc-900 p-1 border border-white/5">
+            <div className={cn(
+              "absolute inset-y-1 w-1/2 rounded-sm transition-all duration-300 ease-out bg-zinc-800 shadow-sm",
+              currentLens === 'lab' ? "translate-x-full" : "translate-x-0"
+            )} />
             <button
-              onClick={() => setLens("focus")}
+              onClick={() => setLens('focus')}
               className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 z-10 text-[10px] font-mono tracking-wider uppercase transition-colors duration-200",
-                currentLens === "focus" ? "text-foreground font-medium" : "text-muted-foreground/60 hover:text-foreground/80"
+                "relative z-10 flex-1 text-[9px] font-mono tracking-wider uppercase transition-colors text-center",
+                currentLens === 'focus' ? "text-white font-bold" : "text-zinc-500 hover:text-zinc-300"
               )}
             >
-              <Eye className="w-3 h-3" />
-              <span>Focus</span>
+              Focus
             </button>
-
             <button
-              onClick={() => setLens("lab")}
+              onClick={() => setLens('lab')}
               className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 z-10 text-[10px] font-mono tracking-wider uppercase transition-colors duration-200",
-                currentLens === "lab" ? "text-foreground font-medium" : "text-muted-foreground/60 hover:text-foreground/80"
+                "relative z-10 flex-1 text-[9px] font-mono tracking-wider uppercase transition-colors text-center",
+                currentLens === 'lab' ? "text-white font-bold" : "text-zinc-500 hover:text-zinc-300"
               )}
             >
-              <FlaskConical className="w-3 h-3" />
-              <span>Lab</span>
+              Lab
             </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Footer Controls */}
-      <div className="p-3 border-t border-border bg-background/50 backdrop-blur-sm flex flex-col gap-2">
+        {/* User Profile */}
+        {!collapsed && user && (
+          <div className="flex items-center justify-between pt-2">
+            <div className="flex items-center gap-3">
+              <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
+                <DialogTrigger asChild>
+                  <button className="h-8 w-8 rounded-full bg-zinc-800 border border-white/5 flex items-center justify-center text-white text-xs font-bold hover:border-white/20 transition-colors">
+                    {user.user_metadata?.full_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase()}
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px] bg-black border border-white/10 text-white">
+                  <DialogHeader>
+                    <DialogTitle className="font-mono uppercase tracking-widest text-sm">Identity Configuration</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-mono text-zinc-500 uppercase">Designation</span>
+                      <Input
+                        value={profileName}
+                        onChange={(e) => setProfileName(e.target.value)}
+                        placeholder="Enter Name"
+                        className="bg-zinc-900 border-white/10 text-white font-mono"
+                      />
+                    </div>
+                    <Button
+                      onClick={handleUpdateProfile}
+                      disabled={loadingProfile}
+                      className="w-full bg-white text-black hover:bg-zinc-200 font-mono text-xs uppercase tracking-widest"
+                    >
+                      {loadingProfile ? "Updating..." : "Confirm Update"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
 
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-white leading-none mb-1 font-mono">
+                  {user.user_metadata?.full_name || 'USER'}
+                </span>
+                <div className="flex items-center gap-1">
+                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500/500 bg-green-500 animate-pulse" />
+                  <span className="text-[9px] text-zinc-500 font-mono leading-none">CONNECTED</span>
+                </div>
+              </div>
+            </div>
 
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsProfileOpen(true)}
+                className="h-7 w-7 text-zinc-600 hover:text-white transition-colors"
+                title="Settings"
+              >
+                <SettingsIcon className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={signOut}
+                className="h-7 w-7 text-zinc-600 hover:text-red-400 transition-colors"
+                title="Disconnect"
+              >
+                <LogOut className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        )}
 
-        {/* Sign Out - Sleek Minimalist */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={signOut}
-          className={cn(
-            "w-full flex items-center gap-2 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors h-7",
-            collapsed ? "justify-center p-0" : "justify-start px-2"
-          )}
-          title="Disconnect"
-        >
-          <LogOut className="h-3.5 w-3.5" />
-          {!collapsed && <span className="font-mono text-[10px] tracking-wider uppercase">Disconnect</span>}
-        </Button>
-
-        {!collapsed && (
-          <p className="text-[9px] font-mono text-muted-foreground/20 text-center pb-1">
-            v1.0.0
-          </p>
+        {/* Collapsed Logic for User Icon */}
+        {collapsed && user && (
+          <div className="flex justify-center border-t border-white/5 pt-4">
+            <div className="h-8 w-8 rounded-full bg-zinc-800 border border-white/5 flex items-center justify-center text-white text-xs font-bold cursor-pointer" title={user.email}>
+              {user.user_metadata?.full_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase()}
+            </div>
+          </div>
         )}
       </div>
     </aside>

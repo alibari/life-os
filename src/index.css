@@ -101,6 +101,25 @@
   h1, h2, h3, h4, h5, h6, .font-mono {
     font-family: 'JetBrains Mono', monospace;
   }
+
+  /* Sleek Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border) / 0.5);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.5);
+  }
 }
 
 @layer components {
@@ -162,6 +181,25 @@
   
   .glow-catabolic {
     box-shadow: 0 0 20px hsl(var(--destructive) / 0.3);
+  }
+
+  /* Custom Scrollbar Utility */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--border) / 0.5);
+    border-radius: 2px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.5);
   }
 }
 
@@ -235,6 +273,11 @@
 
 /* Northeast handle (corner) */
 .react-grid-item > .react-resizable-handle-ne {
+  width: 20px !important;
+  height: 20px !important;
+  top: 0 !important;
+  right: 0 !important;
+  cursor: ne-resize !important;
   width: 20px !important;
   height: 20px !important;
   top: 0 !important;

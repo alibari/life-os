@@ -50,23 +50,44 @@ export const healthService = {
     },
 
     async getMetricHistory(metricName: string, days: number = 7): Promise<HealthMetric[]> {
+
         const fromDate = new Date();
         fromDate.setDate(fromDate.getDate() - days);
 
-        const { data, error } = await supabase
-            .from("health_metrics")
-            .select("*")
-            .eq("metric_name", metricName)
-            .gte("recorded_at", fromDate.toISOString())
-            .order("recorded_at", { ascending: true })
-            .limit(1000);
+        let allData: any[] = [];
+        let page = 0;
+        const pageSize = 1000;
+        // Safety cap mechanism: 100 pages = 100k records (likely plenty for <90 days)
+        // User requested "load all needed data for the timespan", so we rely on range.
+        const safetyMaxPages = 100;
 
-        if (error) {
-            console.error(`Error fetching history for ${metricName}:`, error);
-            return [];
+        console.log(`[HealthService] Fetching ALL history for ${metricName} since ${fromDate.toISOString()}...`);
+
+        while (page < safetyMaxPages) {
+            const { data, error } = await supabase
+                .from("health_metrics")
+                .select("*")
+                .eq("metric_name", metricName)
+                .gte("recorded_at", fromDate.toISOString())
+                .order("recorded_at", { ascending: false })
+                .range(page * pageSize, (page + 1) * pageSize - 1);
+
+            if (error) {
+                console.error(`Error fetching page ${page}:`, error);
+                break;
+            }
+
+            if (!data || data.length === 0) break;
+
+            allData = [...allData, ...data];
+            console.log(`[HealthService] Page ${page} fetched: ${data.length} rows. Total: ${allData.length}`);
+
+            if (data.length < pageSize) break; // Reached the end of available data
+            page++;
         }
 
-        return data || [];
+        console.log(`[HealthService] Completed fetch. Total records: ${allData.length}`);
+        return allData;
     },
 
     /**
@@ -92,7 +113,29 @@ export const healthService = {
         return data || [];
     },
 
-    async getWakeTime(date: Date = new Date()): Promise<Date> {
+    /**
+     * Helper: Fetch metadata (units) for discovered metrics.
+     * Since RPC doesn't return units, we sample 1 row from each known metric.
+     */
+    async getMetricMetadata(metricNames: string[]): Promise<Record<string, string>> {
+        if (!metricNames.length) return {};
+
+        // Parallel fetch is okay for < 20 metrics
+        const promises = metricNames.map(async (name) => {
+            const { data } = await supabase
+                .from("health_metrics")
+                .select("unit")
+                .eq("metric_name", name)
+                .limit(1)
+                .single();
+            return { name, unit: data?.unit || "" };
+        });
+
+        const results = await Promise.all(promises);
+        return results.reduce((acc, curr) => ({ ...acc, [curr.name]: curr.unit }), {} as Record<string, string>);
+    },
+
+    async getWakeTime(date: Date = new Date()): Promise<Date | null> {
         const startOfDay = new Date(date);
         startOfDay.setHours(0, 0, 0, 0);
 
@@ -109,9 +152,8 @@ export const healthService = {
             .limit(1);
 
         if (error || !data || data.length === 0) {
-            const fallback = new Date(date);
-            fallback.setHours(7, 0, 0, 0);
-            return fallback;
+            // Strict Mode: Return null if no data found
+            return null;
         }
 
         return new Date(data[0].recorded_at);
@@ -121,29 +163,21 @@ export const healthService = {
      * Enhanced Audit: Fetches counts, first seen, and latest sync for all metrics
      */
     async getSystemAudit() {
-        const { data: metrics, error: mError } = await supabase
-            .from("health_metrics")
-            .select("metric_name, recorded_at")
-            .order("recorded_at", { ascending: true });
+        // @ts-ignore
+        const { data, error } = await supabase.rpc('get_health_metrics_audit');
 
-        if (mError) throw mError;
+        if (error) {
+            console.error("Audit RPC error:", error);
+            // Fallback (empty) or throw, but let's handle gracefully
+            return [];
+        }
 
-        const auditData: Record<string, { count: number, min: string, max: string }> = {};
-
-        metrics.forEach(m => {
-            if (!auditData[m.metric_name]) {
-                auditData[m.metric_name] = { count: 0, min: m.recorded_at, max: m.recorded_at };
-            }
-            auditData[m.metric_name].count++;
-            if (m.recorded_at > auditData[m.metric_name].max) auditData[m.metric_name].max = m.recorded_at;
-            if (m.recorded_at < auditData[m.metric_name].min) auditData[m.metric_name].min = m.recorded_at;
-        });
-
-        return Object.entries(auditData).map(([name, stats]) => ({
-            name,
-            count: stats.count,
-            firstSeen: stats.min,
-            latestSync: stats.max
+        // Map snake_case from RPC to camelCase for UI
+        return (data || []).map((item: any) => ({
+            name: item.name,
+            count: item.count,
+            firstSeen: item.first_seen,
+            latestSync: item.latest_sync
         }));
     },
 
@@ -169,6 +203,84 @@ export const healthService = {
         return uniqueSources.length > 0 ? uniqueSources : ["Unknown Device"];
     },
 
+
+
+    async generateFullExport(): Promise<any> {
+        console.log("Starting full export generation...");
+
+        // 1. Get all unique metrics using the reliable Audit RPC
+        const auditData = await this.getSystemAudit();
+        if (!auditData || auditData.length === 0) {
+            console.warn("Export warning: No metrics found in audit.");
+        }
+
+        // Deduplicate names (Audit should be unique, but safety first)
+        const metricNames = Array.from(new Set(auditData.map((u: any) => u.name))) as string[];
+        console.log(`Found ${metricNames.length} unique metrics to export from Audit.`);
+
+        // 2. Fetch Aggregated Data in Parallel (batching if needed, but 50-100 is fine)
+        const exportData = await Promise.all(metricNames.map(async (name) => {
+            // A. Get Unit (just take one)
+            const { data: unitData } = await supabase
+                .from("health_metrics")
+                .select("unit")
+                .eq("metric_name", name)
+                .limit(1)
+                .single();
+
+            // B. Get Recent Data (Last 10)
+            const { data: recentData } = await supabase
+                .from("health_metrics")
+                .select("value, unit, source, recorded_at")
+                .eq("metric_name", name)
+                .order("recorded_at", { ascending: false })
+                .limit(10);
+
+            // C. Get Min/Max (Efficient query)
+            // Note: Supabase/PostgREST doesn't support easy "Select MIN(val)" directly without grouping or RPC.
+            // Efficient workaround: Sort ASC limit 1, Sort DESC limit 1.
+            const { data: minData } = await supabase
+                .from("health_metrics")
+                .select("value")
+                .eq("metric_name", name)
+                .order("value", { ascending: true })
+                .limit(1)
+                .single();
+
+            const { data: maxData } = await supabase
+                .from("health_metrics")
+                .select("value")
+                .eq("metric_name", name)
+                .order("value", { ascending: false })
+                .limit(1)
+                .single();
+
+            // D. Get Total Count
+            const { count } = await supabase
+                .from("health_metrics")
+                .select("*", { count: 'exact', head: true })
+                .eq("metric_name", name);
+
+            return {
+                metric_name: name,
+                unit: unitData?.unit || "unknown",
+                stats: {
+                    min: minData?.value ?? null,
+                    max: maxData?.value ?? null,
+                    count: count || 0
+                },
+                recent_data: recentData || []
+            };
+        }));
+
+        return {
+            generated_at: new Date().toISOString(),
+            system_version: "LifeOS v1.0",
+            total_metrics: exportData.length,
+            metrics: exportData
+        };
+    },
+
     async bulkInsert(metrics: any[], onProgress?: (count: number) => void) {
         const BATCH_SIZE = 500;
         let processed = 0;
@@ -187,5 +299,14 @@ export const healthService = {
             processed += batch.length;
             if (onProgress) onProgress(processed);
         }
+    },
+
+    async deleteAllData() {
+        const { error } = await supabase
+            .from("health_metrics")
+            .delete()
+            .neq("id", "00000000-0000-0000-0000-000000000000"); // Standard "Delete All" hack for Supabase if no filter 
+
+        if (error) throw error;
     }
 };

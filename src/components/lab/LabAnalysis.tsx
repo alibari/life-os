@@ -1,5 +1,7 @@
 import { Moon, Activity } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { useQuery } from "@tanstack/react-query";
+import { healthService } from "@/services/health";
 import {
     LineChart,
     Line,
@@ -11,26 +13,21 @@ import {
     Area,
 } from "recharts";
 
-const sleepData = [
-    { day: "Mon", hours: 7.2, quality: 82 },
-    { day: "Tue", hours: 6.5, quality: 68 },
-    { day: "Wed", hours: 8.1, quality: 91 },
-    { day: "Thu", hours: 7.0, quality: 75 },
-    { day: "Fri", hours: 6.8, quality: 70 },
-    { day: "Sat", hours: 8.5, quality: 95 },
-    { day: "Sun", hours: 7.8, quality: 88 },
-];
-
-const hrvData = [
-    { time: "6AM", value: 45 },
-    { time: "9AM", value: 52 },
-    { time: "12PM", value: 48 },
-    { time: "3PM", value: 55 },
-    { time: "6PM", value: 42 },
-    { time: "9PM", value: 58 },
-];
-
 export function LabSleepAnalysis({ compact }: { compact?: boolean }) {
+    const { data: history } = useQuery({
+        queryKey: ['lab-sleep-history'],
+        queryFn: () => healthService.getMetricHistory('sleep_duration', 7)
+    });
+
+    const chartData = (history || [])
+        .slice()
+        .reverse() // API returns desc, we want asc for chart
+        .map(h => ({
+            day: new Date(h.recorded_at).toLocaleDateString('en-US', { weekday: 'short' }),
+            hours: h.value / 60, // convert min to hours
+            date: h.recorded_at
+        }));
+
     return (
         <Card className="card-surface p-4 h-full flex flex-col">
             <div className="flex items-center justify-between mb-4">
@@ -40,58 +37,80 @@ export function LabSleepAnalysis({ compact }: { compact?: boolean }) {
                 </div>
                 {!compact && (
                     <span className="text-xs font-mono text-muted-foreground">
-                        This Week
+                        Last 7 Days
                     </span>
                 )}
             </div>
             <div className="flex-1 min-h-[120px]">
-                <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={sleepData}>
-                        <defs>
-                            <linearGradient id="sleepGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
-                                <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                            </linearGradient>
-                        </defs>
-                        <XAxis
-                            dataKey="day"
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                            hide={compact}
-                        />
-                        <YAxis
-                            domain={[0, 10]}
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                            width={30}
-                            hide={compact}
-                        />
-                        <Tooltip
-                            contentStyle={{
-                                backgroundColor: 'hsl(var(--card))',
-                                border: '1px solid hsl(var(--border))',
-                                borderRadius: '8px',
-                                fontSize: '12px',
-                            }}
-                            labelStyle={{ color: 'hsl(var(--foreground))' }}
-                        />
-                        <Area
-                            type="monotone"
-                            dataKey="hours"
-                            stroke="hsl(var(--primary))"
-                            strokeWidth={2}
-                            fill="url(#sleepGradient)"
-                        />
-                    </AreaChart>
-                </ResponsiveContainer>
+                {chartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={chartData}>
+                            <defs>
+                                <linearGradient id="sleepGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                                </linearGradient>
+                            </defs>
+                            <XAxis
+                                dataKey="day"
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                                hide={compact}
+                            />
+                            <YAxis
+                                domain={[0, 'auto']}
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                                width={30}
+                                hide={compact}
+                            />
+                            <Tooltip
+                                contentStyle={{
+                                    backgroundColor: 'hsl(var(--card))',
+                                    border: '1px solid hsl(var(--border))',
+                                    borderRadius: '8px',
+                                    fontSize: '12px',
+                                }}
+                                labelStyle={{ color: 'hsl(var(--foreground))' }}
+                                formatter={(value: number) => [`${value.toFixed(1)}h`, 'Duration']}
+                            />
+                            <Area
+                                type="monotone"
+                                dataKey="hours"
+                                stroke="hsl(var(--primary))"
+                                strokeWidth={2}
+                                fill="url(#sleepGradient)"
+                            />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="h-full flex items-center justify-center text-xs text-muted-foreground font-mono">
+                        NO DATA AVAILABLE
+                    </div>
+                )}
             </div>
         </Card>
     );
 }
 
 export function LabHRVTrend({ compact }: { compact?: boolean }) {
+    const { data: history } = useQuery({
+        queryKey: ['lab-hrv-history'],
+        queryFn: () => healthService.getMetricHistory('heart_rate_variability', 3) // Last 3 days high res
+    });
+
+    // We likely want to show just the last 24h or a trend.
+    // Let's take the last 20 data points for clarity in "Trend"
+    const chartData = (history || [])
+        .slice(0, 20)
+        .reverse()
+        .map(h => ({
+            time: new Date(h.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            value: h.value
+        }));
+
     return (
         <Card className="card-surface p-4 h-full flex flex-col">
             <div className="flex items-center justify-between mb-4">
@@ -101,47 +120,53 @@ export function LabHRVTrend({ compact }: { compact?: boolean }) {
                 </div>
                 {!compact && (
                     <span className="text-xs font-mono text-muted-foreground">
-                        Today
+                        Recent
                     </span>
                 )}
             </div>
             <div className="flex-1 min-h-[120px]">
-                <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={hrvData}>
-                        <XAxis
-                            dataKey="time"
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                            hide={compact}
-                        />
-                        <YAxis
-                            domain={[30, 70]}
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                            width={30}
-                            hide={compact}
-                        />
-                        <Tooltip
-                            contentStyle={{
-                                backgroundColor: 'hsl(var(--card))',
-                                border: '1px solid hsl(var(--border))',
-                                borderRadius: '8px',
-                                fontSize: '12px',
-                            }}
-                            labelStyle={{ color: 'hsl(var(--foreground))' }}
-                        />
-                        <Line
-                            type="monotone"
-                            dataKey="value"
-                            stroke="hsl(var(--destructive))"
-                            strokeWidth={2}
-                            dot={{ fill: 'hsl(var(--destructive))', strokeWidth: 0, r: 3 }}
-                            activeDot={{ r: 5, fill: 'hsl(var(--destructive))' }}
-                        />
-                    </LineChart>
-                </ResponsiveContainer>
+                {chartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={chartData}>
+                            <XAxis
+                                dataKey="time"
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                                hide={compact}
+                            />
+                            <YAxis
+                                domain={['dataMin - 10', 'dataMax + 10']}
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                                width={30}
+                                hide={compact}
+                            />
+                            <Tooltip
+                                contentStyle={{
+                                    backgroundColor: 'hsl(var(--card))',
+                                    border: '1px solid hsl(var(--border))',
+                                    borderRadius: '8px',
+                                    fontSize: '12px',
+                                }}
+                                labelStyle={{ color: 'hsl(var(--foreground))' }}
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="value"
+                                stroke="hsl(var(--destructive))"
+                                strokeWidth={2}
+                                dot={{ fill: 'hsl(var(--destructive))', strokeWidth: 0, r: 3 }}
+                                activeDot={{ r: 5, fill: 'hsl(var(--destructive))' }}
+                            />
+                        </LineChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="h-full flex items-center justify-center text-xs text-muted-foreground font-mono">
+                        NO DATA AVAILABLE
+                    </div>
+                )}
             </div>
         </Card>
     );

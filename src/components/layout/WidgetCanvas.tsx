@@ -23,6 +23,7 @@ interface WidgetCanvasProps {
     defaultLayouts?: LayoutItem[];
     defaultWidgets?: WidgetConfig[];
     locked?: boolean;
+    children?: React.ReactNode;
 }
 
 export function WidgetCanvas({

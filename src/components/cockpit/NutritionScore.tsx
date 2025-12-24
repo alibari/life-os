@@ -1,12 +1,28 @@
 import { Apple, Droplets, Flame, Pill } from "lucide-react";
+import { useScientificModel } from "@/hooks/useScientificModel";
+import { useQuery } from "@tanstack/react-query";
+import { healthService } from "@/services/health";
 
 export const NutritionScore = () => {
-  const score = 72;
-  const hydration = 65;
-  const calories = 1850;
+  const { weights } = useScientificModel();
+
+  // Fetch Inputs (Mock for now as these are hard to get from simple health export without logging app)
+  // In a real scenario, we'd fetch calories and water.
+  // We'll use Active Energy as a proxy for "Calorie Burn" but "Intake" needs manual log.
+  // For now, we simulate "Intake" based on "Burn" + 400 surplus? No, that's complex.
+  // We will revert to mock data for inputs BUT use the dynamic weights for the score calculation.
+
+  const hydration = 65; // Mock
+  const calories = 1850; // Mock
   const calorieGoal = 2200;
-  const supplements = 3;
+  const supplements = 3; // Mock
   const supplementGoal = 5;
+
+  const score = Math.min(100, Math.round(
+    (Math.min(100, hydration) * weights.nutrition_hydration_weight) +
+    (Math.min(100, (calories / calorieGoal) * 100) * weights.nutrition_calories_weight) +
+    (Math.min(100, (supplements / supplementGoal) * 100) * weights.nutrition_supplement_weight)
+  ));
 
   const getScoreColor = (val: number) => {
     if (val >= 80) return "text-primary";
@@ -80,9 +96,8 @@ export const NutritionScore = () => {
             {Array.from({ length: supplementGoal }).map((_, i) => (
               <div
                 key={i}
-                className={`flex-1 h-2 rounded-full ${
-                  i < supplements ? "bg-primary" : "bg-muted"
-                }`}
+                className={`flex-1 h-2 rounded-full ${i < supplements ? "bg-primary" : "bg-muted"
+                  }`}
               />
             ))}
           </div>
