@@ -371,13 +371,7 @@ export function HabitListWidget() {
                                                 </span>
                                             )}
 
-                                            {/* Vector / System */}
-                                            {habit.vector && (
-                                                <span className="flex items-center gap-1 opacity-60 text-purple-400">
-                                                    <span className="w-0.5 h-0.5 rounded-full bg-zinc-500" />
-                                                    {habit.vector}
-                                                </span>
-                                            )}
+
                                         </div>
                                     </div>
                                 </div>
@@ -420,7 +414,7 @@ export function HabitListWidget() {
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-50" />
 
             {/* Header */}
-            <div className="p-6 pb-2 border-b border-white/5 shrink-0 bg-gradient-to-b from-white/[0.02] to-transparent relative z-20">
+            <div className="p-6 pb-2 shrink-0 bg-gradient-to-b from-white/[0.02] to-transparent relative z-20">
                 <div className="flex items-start justify-between mb-2">
                     <div className="flex flex-col">
                         <span className="font-mono text-[10px] tracking-[0.3em] uppercase text-zinc-500 mb-2 flex items-center gap-2">
@@ -526,7 +520,7 @@ export function HabitListWidget() {
             </div>
 
             {/* Scrollable Tab Navigation & Controls */}
-            <div className="relative flex items-center justify-between pl-1 pr-6 pb-2 gap-4">
+            <div className="relative flex items-center justify-between px-6 pb-2 gap-4">
                 <div className="flex-1 overflow-auto [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-700/50 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-600 [&::-webkit-scrollbar-track]:bg-transparent pb-2 mask-gradient-x flex items-center gap-2">
                     {visibleTabs.map(p => {
                         const isActive = activeTab === p.id;
@@ -581,7 +575,7 @@ export function HabitListWidget() {
                                 {isActive && (
                                     <motion.div
                                         layoutId="activeTabLine"
-                                        className="absolute bottom-0 left-0 w-full h-[2px] bg-emerald-500"
+                                        className="absolute bottom-0 left-0 w-full h-[2px] bg-zinc-600"
                                     />
                                 )}
                             </button>

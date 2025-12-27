@@ -5,16 +5,7 @@ import type { Habit, HabitLog, Vector, Protocol } from "@/types/habits";
 
 import { isScheduledForToday, freqMap } from "@/lib/scheduling";
 
-// Helper to derive category dynamically as requested
-const deriveCategory = (vector: Vector, state: number): string => {
-    if (vector === 'Social') return 'Spirit';
-    if (vector === 'Circadian') return 'Sleep';
-    if (['Metabolic', 'Thermal', 'Musculoskeletal'].includes(vector)) return 'Body';
-    if (vector === 'Cognitive') {
-        return state > 0 ? 'Focus' : 'Mind';
-    }
-    return 'General';
-};
+
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -33,7 +24,6 @@ export const habitService = {
                     id,
                     name,
                     is_active,
-                    start_date,
                     scheduling_config
                 )
             `)
@@ -90,7 +80,6 @@ export const habitService = {
                     id,
                     name,
                     is_active,
-                    start_date,
                     scheduling_config
                 )
             `)
@@ -121,7 +110,7 @@ export const habitService = {
                 // 3. Protocol Schedule Check
                 // V11 Protocol Schedule
                 if (protocol.scheduling_config && protocol.scheduling_config.type !== 'daily') {
-                    if (!isScheduledForToday(protocol.scheduling_config, protocol.start_date)) {
+                    if (!isScheduledForToday(protocol.scheduling_config)) {
                         console.log(`[HabitCheck] Filtering OUT ${h.name} due to V11 Schedule`);
                         return false;
                     }
@@ -259,7 +248,12 @@ export const habitService = {
 
         const axes = { 'Body': 0, 'Mind': 0, 'Spirit': 0, 'Sleep': 0, 'Focus': 0 };
         habits.forEach(h => {
-            const cat = deriveCategory(h.vector, h.state);
+            let cat = 'General';
+            if (h.vector === 'Social') cat = 'Spirit';
+            else if (h.vector === 'Circadian') cat = 'Sleep';
+            else if (['Metabolic', 'Thermal', 'Musculoskeletal'].includes(h.vector)) cat = 'Body';
+            else if (h.vector === 'Cognitive') cat = (h.state || 0) > 0 ? 'Focus' : 'Mind';
+
             if (axes[cat as keyof typeof axes] !== undefined) axes[cat as keyof typeof axes]++;
         });
 
@@ -354,7 +348,7 @@ export const habitService = {
                 friction: h.friction || 5,
                 duration: h.duration || 15,
                 frequency_days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], // Default Daily
-                category: deriveCategory(h.vector as Vector, h.state || 0),
+
                 is_active: true,
                 time_of_day: h.time_of_day || 'all_day'
             };
@@ -393,7 +387,13 @@ export const habitService = {
 
         // 2. Create Habits
         for (const habitName of bundle.habits) {
-            const template = HABIT_Biblio.find(h => h.name === habitName);
+            let template = HABIT_Biblio.find(h => h.name === habitName);
+
+            // 2b. Fallback: Trim match
+            if (!template) {
+                template = HABIT_Biblio.find(h => h.name?.trim() === habitName.trim());
+            }
+
             if (template) {
                 await habitService.createHabit({
                     user_id: user.id,
@@ -411,6 +411,8 @@ export const habitService = {
                     time_of_day: template.time_of_day as any || 'all_day'
                 });
                 console.log(`[ImportProtocol] Creating habit: ${template.name} | SecDriver: ${(template as any).secondary_driver}`);
+            } else {
+                console.error(`[ImportProtocol] FAILED to find template for habit: "${habitName}" in bundle: ${bundle.name}`);
             }
         }
     },

@@ -409,7 +409,7 @@ export function HabitManager() {
     const [habitForm, setHabitForm] = useState<Partial<Habit>>({
         name: '', friction: 1, state: 0, duration: 15,
         primary_driver: 'Dopamine', vector: 'Cognitive', is_active: true,
-        category: 'Focus', time_of_day: 'all_day',
+        time_of_day: 'all_day',
         frequency_days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
         start_date: new Date().toISOString().split('T')[0]
     });
@@ -452,7 +452,7 @@ export function HabitManager() {
         setHabitForm({
             name: '', friction: 1, state: 0, duration: 15,
             primary_driver: 'Dopamine', vector: 'Cognitive', is_active: true,
-            category: 'Focus', time_of_day: 'all_day',
+            time_of_day: 'all_day',
             frequency_days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
             start_date: new Date().toISOString().split('T')[0],
             protocol_id: targetProtocolId // Preserve context if set
@@ -473,8 +473,7 @@ export function HabitManager() {
             if (h.protocol_id) {
                 const p = protocols?.find(p => p.id === h.protocol_id);
                 if (!p || !p.is_active) return false;
-                // 3. Schedule Check (Protocol)
-                if (p.scheduling_config && !isScheduledForToday(p.scheduling_config, p.start_date)) return false;
+                if (p.scheduling_config && !isScheduledForToday(p.scheduling_config)) return false;
             }
 
             // 4. Schedule Check (Standalone - if it has config)
@@ -595,7 +594,6 @@ export function HabitManager() {
             secondary_driver: habitForm.secondary_driver,
             vector: habitForm.vector,
             is_active: habitForm.is_active,
-            category: habitForm.category,
             time_of_day: habitForm.time_of_day,
             frequency_days: habitForm.frequency_days,
             protocol_id: habitForm.protocol_id,
@@ -722,7 +720,7 @@ export function HabitManager() {
                         const net = pHabits.reduce((acc, h) => acc + (h.state || 0), 0);
                         const stateColor = net > 0 ? "text-orange-400" : net < 0 ? "text-blue-400" : "text-zinc-500";
 
-                        const isScheduled = isScheduledForToday(p.scheduling_config, p.start_date);
+                        const isScheduled = isScheduledForToday(p.scheduling_config);
                         const isActiveToday = p.is_active && isScheduled;
 
                         return (
@@ -829,9 +827,8 @@ export function HabitManager() {
 
                                         // 2. Determine "Standby" (Active but not scheduled for today)
                                         let isStandby = false;
-                                        // Check Protocol Schedule first
                                         if (protocol && protocol.scheduling_config) {
-                                            if (!isScheduledForToday(protocol.scheduling_config, protocol.start_date)) isStandby = true;
+                                            if (!isScheduledForToday(protocol.scheduling_config)) isStandby = true;
                                         }
                                         // Check Habit Schedule (Legacy/Simple Frequency - Prioritize for Standalone Habits matches UI)
                                         else if (h.frequency_days && h.frequency_days.length > 0) {
@@ -916,11 +913,7 @@ export function HabitManager() {
                                                                 </div>
 
                                                                 {/* Category (if exists) */}
-                                                                {h.category && (
-                                                                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-black/20 border border-white/5 text-[10px] text-zinc-400">
-                                                                        <span className="capitalize">{h.category}</span>
-                                                                    </div>
-                                                                )}
+
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1462,7 +1455,22 @@ export function HabitManager() {
                         </div>
 
                         {/* FOOTER ACTION BAR */}
-                        <div className="col-span-12 bg-black/40 backdrop-blur-md p-6 flex justify-end items-center z-20 mt-auto sticky bottom-0">
+                        <div className="col-span-12 bg-black/40 backdrop-blur-md p-6 flex justify-between items-center z-20 mt-auto sticky bottom-0">
+                            {editingProtocol && editingProtocol.id ? (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    onClick={() => {
+                                        if (confirm("Delete this Protocol? Habits will be detached.")) {
+                                            deleteProtocolMutation.mutate(editingProtocol.id!);
+                                        }
+                                    }}
+                                    className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                                >
+                                    <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                </Button>
+                            ) : <div></div>}
+
                             <div className="flex gap-4">
                                 <Button type="button" variant="ghost" onClick={() => setIsEditProtocolOpen(false)} className="text-zinc-500 hover:text-white">Cancel</Button>
                                 <Button type="submit" className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold uppercase tracking-widest text-xs px-8 h-10 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
@@ -1515,16 +1523,24 @@ export function HabitManager() {
 
                                         const firstHabit = HABIT_Biblio.find(h => h.name === b.habits[0]);
                                         if (!firstHabit) return true;
-                                        const hState = (firstHabit as any).impact_score > 5 ? 'Rest' : 'Action';
-                                        const hDriver = (firstHabit as any).reward_pathway ? capitalize((firstHabit as any).reward_pathway.split('_')[0]) : 'Dopamine';
+                                        // Scientific Logic: Negative State = Rest/Recovery, Positive = Action/Activation
+                                        const hState = (firstHabit.state || 0) < 0 ? 'Rest' : 'Action';
+
+                                        const hDriver = firstHabit.primary_driver ? capitalize(firstHabit.primary_driver) : 'Dopamine';
+
                                         if (libraryFilters.driver !== 'All' && hDriver !== libraryFilters.driver) return false;
                                         if (libraryFilters.state !== 'All' && hState !== libraryFilters.state) return false;
                                         return true;
                                     }).sort((a, b) => {
                                         const getScore = (bundle: typeof PROTOCOL_BUNDLES[0]) => {
                                             const firstHabit = HABIT_Biblio.find(h => h.name === bundle.habits[0]);
-                                            const hStateVal = (firstHabit as any).impact_score > 5 ? 2 : -2;
+                                            const hStateVal = firstHabit?.state || 0;
+
+                                            // Recommendation Logic: 
+                                            // If Net State is low (Too Calm/Depressed), recommend Action (Positive State).
+                                            // If Net State is high (Manic/Stressed), recommend Rest (Negative State).
                                             const needed = metrics.netState < -5 ? 1 : metrics.netState > 5 ? -1 : 0;
+
                                             if (needed === 1 && hStateVal > 0) return 10;
                                             if (needed === -1 && hStateVal < 0) return 10;
                                             return 0;
@@ -1532,7 +1548,7 @@ export function HabitManager() {
                                         return getScore(b) - getScore(a);
                                     }).map(bundle => {
                                         const firstHabit = HABIT_Biblio.find(h => h.name === bundle.habits[0]);
-                                        const hStateVal = (firstHabit as any).impact_score > 5 ? 1 : -1;
+                                        const hStateVal = firstHabit?.state || 0;
                                         const isRecommended = (metrics.netState < -5 && hStateVal > 0) || (metrics.netState > 5 && hStateVal < 0);
 
                                         return (

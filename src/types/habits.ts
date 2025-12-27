@@ -36,9 +36,6 @@ export interface Protocol {
     frequency_days?: string[]; // Legacy support
 
     time_of_day?: 'morning' | 'afternoon' | 'evening' | 'all_day';
-    start_date?: string;
-    end_date?: string;
-
     created_at?: string;
 }
 
@@ -56,13 +53,8 @@ export interface Habit {
     time_of_day: 'morning' | 'afternoon' | 'evening' | 'all_day';
     start_date?: string;
     end_date?: string;
-    category?: string; // Stored (e.g. Focus, Body)
     emoji?: string; // Display Emoji
     protocol?: Protocol; // Joined Protocol Data
-
-    // Legacy Metrics (Mapped to Scientific in UI)
-    impact_score: number; // 1-10
-    energy_cost: number; // 1-10 (Friction)
 
     // Scientific Config (V4)
     primary_driver: PrimaryDriver;
@@ -81,7 +73,7 @@ export interface HabitLog {
     habit_id: string;
     completed_at: string;
 
-    // Legacy Snapshots
+    // Snapshots
     energy_cost_snapshot?: number;
     impact_score_snapshot?: number;
     reward_pathway_snapshot?: string;
