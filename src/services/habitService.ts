@@ -29,10 +29,12 @@ export const habitService = {
             .from('habits')
             .select(`
                 *,
-                protocols (
+                protocol:protocols!protocol_id (
                     id,
                     name,
-                    is_active
+                    is_active,
+                    start_date,
+                    scheduling_config
                 )
             `)
             .eq('user_id', user.id)
@@ -66,10 +68,17 @@ export const habitService = {
         const todayStr = now.toISOString().split('T')[0];
 
         // 1. Get Logged Habits (completed today)
+        const startOfDay = new Date(todayStr); // UTC assumption or User Local? 
+        // Better: Use the date string to form ISO Range for the whole day
+        const start = `${todayStr}T00:00:00`;
+        const end = `${todayStr}T23:59:59`;
+
         const { data: logs } = await supabase
             .from('habit_logs')
             .select('habit_id')
-            .eq('completed_date', todayStr);
+            .gte('completed_at', start)
+            .lte('completed_at', end);
+
         const loggedIds = new Set(logs?.map(l => l.habit_id));
 
         // 2. Get Active Habits
@@ -82,7 +91,6 @@ export const habitService = {
                     name,
                     is_active,
                     start_date,
-                    frequency_days,
                     scheduling_config
                 )
             `)
@@ -104,34 +112,48 @@ export const habitService = {
 
             // Check Protocol Status & Schedule (Priority)
             if (protocol) {
+                // 1. Protocol Active Check (Master Switch)
                 if (protocol.is_active === false) return false;
 
-                // V11 Protocol Schedule Check
+                // 2. Habit Active Check (Sub-Switch) - Allows pausing specific habit in active protocol
+                if (h.is_active === false) return false;
+
+                // 3. Protocol Schedule Check
+                // V11 Protocol Schedule
                 if (protocol.scheduling_config && protocol.scheduling_config.type !== 'daily') {
                     if (!isScheduledForToday(protocol.scheduling_config, protocol.start_date)) {
                         console.log(`[HabitCheck] Filtering OUT ${h.name} due to V11 Schedule`);
                         return false;
                     }
                 }
-                // Legacy Protocol Schedule Check
+                // Legacy Protocol Schedule
                 else if (protocol.frequency_days && protocol.frequency_days.length > 0) {
                     if (!protocol.frequency_days.includes(currentDay)) return false;
                 }
 
                 // If Protocol Checks passed, we INCLUDE it.
-                // We do NOT check the habit's individual legacy frequency if it belongs to a protocol, 
-                // because the Protocol overrides it.
                 return true;
             }
 
             // Standalone Habit Schedule
             // (Only check these if NO protocol exists)
             if (!protocol) {
+                // 1. Standalone Active Check
+                if (h.is_active === false) return false;
+
                 const start = h.start_date ? new Date(h.start_date) : new Date(0);
                 const end = h.end_date ? new Date(h.end_date) : new Date(9999, 11, 31);
+                // Reset times for accurate date comparison
+                if (h.start_date) start.setHours(0, 0, 0, 0);
+                if (h.end_date) end.setHours(23, 59, 59, 999);
+
+                // 2. Date Range Check
+                now.setHours(0, 0, 0, 0); // Compare dates only
                 if (now < start || now > end) return false;
 
+                // 3. Frequency Check
                 if (h.frequency_days && h.frequency_days.length > 0) {
+                    // Legacy Frequency check
                     if (!h.frequency_days.includes(currentDay)) return false;
                 }
             }

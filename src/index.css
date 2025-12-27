@@ -9,40 +9,40 @@
     /* OLED Black Theme - Cyberpunk Minimalist */
     --background: 0 0% 0%;
     --foreground: 0 0% 98%;
-    
+
     --card: 240 6% 10%;
     --card-foreground: 0 0% 98%;
-    
+
     --popover: 240 6% 10%;
     --popover-foreground: 0 0% 98%;
-    
+
     --primary: 160 84% 39%;
     --primary-foreground: 0 0% 0%;
-    
+
     --secondary: 217 91% 60%;
     --secondary-foreground: 0 0% 98%;
-    
+
     --muted: 240 4% 16%;
     --muted-foreground: 240 5% 65%;
-    
+
     --accent: 160 84% 39%;
     --accent-foreground: 0 0% 0%;
-    
+
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    
+
     --border: 240 4% 16%;
     --input: 240 4% 16%;
     --ring: 160 84% 39%;
-    
+
     --radius: 0.75rem;
-    
+
     /* Custom semantic tokens */
     --anabolic: 160 84% 39%;
     --catabolic: 0 84% 60%;
     --warning: 45 93% 47%;
     --growth: 160 84% 39%;
-    
+
     /* Sidebar */
     --sidebar-background: 0 0% 0%;
     --sidebar-foreground: 0 0% 98%;
@@ -57,32 +57,32 @@
   .dark {
     --background: 0 0% 0%;
     --foreground: 0 0% 98%;
-    
+
     --card: 240 6% 10%;
     --card-foreground: 0 0% 98%;
-    
+
     --popover: 240 6% 10%;
     --popover-foreground: 0 0% 98%;
-    
+
     --primary: 160 84% 39%;
     --primary-foreground: 0 0% 0%;
-    
+
     --secondary: 217 91% 60%;
     --secondary-foreground: 0 0% 98%;
-    
+
     --muted: 240 4% 16%;
     --muted-foreground: 240 5% 65%;
-    
+
     --accent: 160 84% 39%;
     --accent-foreground: 0 0% 0%;
-    
+
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    
+
     --border: 240 4% 16%;
     --input: 240 4% 16%;
     --ring: 160 84% 39%;
-    
+
     --anabolic: 160 84% 39%;
     --catabolic: 0 84% 60%;
   }
@@ -92,13 +92,26 @@
   * {
     @apply border-border;
   }
-  
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', sans-serif;
   }
-  
-  h1, h2, h3, h4, h5, h6, .font-mono {
+
+  /* Responsive Zoom for Laptops vs Monitors */
+  @media (max-width: 1700px) {
+    html {
+      zoom: 90%;
+    }
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  .font-mono {
     font-family: 'JetBrains Mono', monospace;
   }
 
@@ -113,12 +126,12 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: hsl(var(--border) / 0.5);
+    background: hsl(var(--primary) / 0.5);
     border-radius: 3px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--primary) / 0.5);
+    background: hsl(var(--primary));
   }
 }
 
@@ -126,15 +139,15 @@
   .glass {
     @apply backdrop-blur-xl bg-card/80 border border-border;
   }
-  
+
   .card-surface {
     @apply bg-card border border-border rounded-lg;
   }
-  
+
   .text-anabolic {
     color: hsl(var(--anabolic));
   }
-  
+
   .text-catabolic {
     color: hsl(var(--destructive));
   }
@@ -162,23 +175,23 @@
   .bg-warning {
     background-color: hsl(var(--warning));
   }
-  
+
   .bg-anabolic {
     background-color: hsl(var(--anabolic));
   }
-  
+
   .bg-catabolic {
     background-color: hsl(var(--destructive));
   }
-  
+
   .glow-anabolic {
     box-shadow: 0 0 20px hsl(var(--anabolic) / 0.3);
   }
-  
+
   .glow-focus {
     box-shadow: 0 0 20px hsl(var(--secondary) / 0.3);
   }
-  
+
   .glow-catabolic {
     box-shadow: 0 0 20px hsl(var(--destructive) / 0.3);
   }
@@ -194,12 +207,12 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: hsl(var(--border) / 0.5);
+    background: hsl(var(--primary) / 0.5);
     border-radius: 2px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--primary) / 0.5);
+    background: hsl(var(--primary));
   }
 }
 
@@ -218,19 +231,19 @@
 }
 
 /* Base resize handle styles */
-.react-grid-item > .react-resizable-handle {
+.react-grid-item>.react-resizable-handle {
   position: absolute;
   opacity: 0;
   transition: opacity 0.2s ease;
   z-index: 20;
 }
 
-.react-grid-item:hover > .react-resizable-handle {
+.react-grid-item:hover>.react-resizable-handle {
   opacity: 1;
 }
 
 /* Southeast handle (corner) */
-.react-grid-item > .react-resizable-handle-se {
+.react-grid-item>.react-resizable-handle-se {
   width: 20px !important;
   height: 20px !important;
   bottom: 0 !important;
@@ -238,7 +251,7 @@
   cursor: se-resize !important;
 }
 
-.react-grid-item > .react-resizable-handle-se::after {
+.react-grid-item>.react-resizable-handle-se::after {
   content: '';
   position: absolute;
   width: 10px !important;
@@ -251,7 +264,7 @@
 }
 
 /* Southwest handle (corner) */
-.react-grid-item > .react-resizable-handle-sw {
+.react-grid-item>.react-resizable-handle-sw {
   width: 20px !important;
   height: 20px !important;
   bottom: 0 !important;
@@ -259,7 +272,7 @@
   cursor: sw-resize !important;
 }
 
-.react-grid-item > .react-resizable-handle-sw::after {
+.react-grid-item>.react-resizable-handle-sw::after {
   content: '';
   position: absolute;
   width: 10px !important;
@@ -272,7 +285,7 @@
 }
 
 /* Northeast handle (corner) */
-.react-grid-item > .react-resizable-handle-ne {
+.react-grid-item>.react-resizable-handle-ne {
   width: 20px !important;
   height: 20px !important;
   top: 0 !important;
@@ -285,7 +298,7 @@
   cursor: ne-resize !important;
 }
 
-.react-grid-item > .react-resizable-handle-ne::after {
+.react-grid-item>.react-resizable-handle-ne::after {
   content: '';
   position: absolute;
   width: 10px !important;
@@ -298,7 +311,7 @@
 }
 
 /* Northwest handle (corner) */
-.react-grid-item > .react-resizable-handle-nw {
+.react-grid-item>.react-resizable-handle-nw {
   width: 20px !important;
   height: 20px !important;
   top: 0 !important;
@@ -306,7 +319,7 @@
   cursor: nw-resize !important;
 }
 
-.react-grid-item > .react-resizable-handle-nw::after {
+.react-grid-item>.react-resizable-handle-nw::after {
   content: '';
   position: absolute;
   width: 10px !important;
@@ -319,7 +332,7 @@
 }
 
 /* East handle (right edge for width) */
-.react-grid-item > .react-resizable-handle-e {
+.react-grid-item>.react-resizable-handle-e {
   width: 12px !important;
   height: calc(100% - 40px) !important;
   top: 20px !important;
@@ -327,7 +340,7 @@
   cursor: e-resize !important;
 }
 
-.react-grid-item > .react-resizable-handle-e::after {
+.react-grid-item>.react-resizable-handle-e::after {
   content: '';
   position: absolute;
   width: 4px !important;
@@ -340,7 +353,7 @@
 }
 
 /* West handle (left edge for width) */
-.react-grid-item > .react-resizable-handle-w {
+.react-grid-item>.react-resizable-handle-w {
   width: 12px !important;
   height: calc(100% - 40px) !important;
   top: 20px !important;
@@ -348,7 +361,7 @@
   cursor: w-resize !important;
 }
 
-.react-grid-item > .react-resizable-handle-w::after {
+.react-grid-item>.react-resizable-handle-w::after {
   content: '';
   position: absolute;
   width: 4px !important;
@@ -361,7 +374,7 @@
 }
 
 /* South handle (bottom edge for height) */
-.react-grid-item > .react-resizable-handle-s {
+.react-grid-item>.react-resizable-handle-s {
   width: calc(100% - 40px) !important;
   height: 12px !important;
   bottom: -6px !important;
@@ -369,7 +382,7 @@
   cursor: s-resize !important;
 }
 
-.react-grid-item > .react-resizable-handle-s::after {
+.react-grid-item>.react-resizable-handle-s::after {
   content: '';
   position: absolute;
   width: 40px !important;
@@ -382,7 +395,7 @@
 }
 
 /* North handle (top edge for height) */
-.react-grid-item > .react-resizable-handle-n {
+.react-grid-item>.react-resizable-handle-n {
   width: calc(100% - 40px) !important;
   height: 12px !important;
   top: -6px !important;
@@ -390,7 +403,7 @@
   cursor: n-resize !important;
 }
 
-.react-grid-item > .react-resizable-handle-n::after {
+.react-grid-item>.react-resizable-handle-n::after {
   content: '';
   position: absolute;
   width: 40px !important;
@@ -403,7 +416,7 @@
 }
 
 /* Hover states */
-.react-grid-item > .react-resizable-handle:hover::after {
+.react-grid-item>.react-resizable-handle:hover::after {
   background: hsl(var(--primary)) !important;
   border-color: hsl(var(--primary)) !important;
 }
@@ -421,7 +434,7 @@
 
 /* Canvas grid pattern */
 .cockpit-canvas {
-  background-image: 
+  background-image:
     radial-gradient(circle at 1px 1px, hsl(var(--border) / 0.5) 1px, transparent 0);
   background-size: 28px 28px;
 }

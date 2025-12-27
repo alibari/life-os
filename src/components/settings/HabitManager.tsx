@@ -1174,7 +1174,8 @@ export function HabitManager() {
 
                             {/* SCHEDULING (V11: Advanced Control) */}
                             <div className="space-y-4 pt-4 border-t border-white/5">
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-4">
+
                                     <div className="space-y-1">
                                         <Label className="text-[9px] uppercase text-zinc-500">Frequency Type</Label>
                                         <Select

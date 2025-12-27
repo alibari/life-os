@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { GripVertical, X, Maximize2, Minimize2, ArrowLeftRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { WidgetProvider } from "@/context/WidgetContext";
 
 interface WidgetFrameProps {
     children: React.ReactNode;
@@ -40,6 +41,8 @@ export function WidgetFrame({
     locked,
     ...props
 }: WidgetFrameProps) {
+    const [headerActions, setHeaderActions] = useState<React.ReactNode>(null);
+
     return (
         <div
             id={id}
@@ -56,13 +59,16 @@ export function WidgetFrame({
         >
             {/* Header Controls (Visible on Hover) - Hidden when locked */}
             {!locked && (
-                <div className="absolute top-0 inset-x-0 h-10 z-20 flex items-center justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-to-b from-black/5 to-transparent">
+                <div className="absolute top-0 inset-x-0 h-10 z-20 flex items-center justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-to-b from-black/5 to-transparent pointer-events-none">
                     {/* Drag Handle */}
-                    <div className="drag-handle p-1.5 rounded-md cursor-grab active:cursor-grabbing hover:bg-primary/10 transition-colors">
+                    <div className="drag-handle pointer-events-auto p-1.5 rounded-md cursor-grab active:cursor-grabbing hover:bg-primary/10 transition-colors">
                         <GripVertical className="h-4 w-4 text-muted-foreground/50 hover:text-primary" />
                     </div>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 pointer-events-auto">
+                        {/* Injected Widget Actions */}
+                        {headerActions}
+
                         {/* Full Width Toggle */}
                         {onToggleFullWidth && (
                             <Button
@@ -103,7 +109,9 @@ export function WidgetFrame({
                     </h3>
                 )}
                 <div className="flex-1 min-h-0 relative">
-                    {children}
+                    <WidgetProvider onActionsChange={setHeaderActions}>
+                        {children}
+                    </WidgetProvider>
                 </div>
             </div>
 

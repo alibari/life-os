@@ -57,6 +57,8 @@ export interface Habit {
     start_date?: string;
     end_date?: string;
     category?: string; // Stored (e.g. Focus, Body)
+    emoji?: string; // Display Emoji
+    protocol?: Protocol; // Joined Protocol Data
 
     // Legacy Metrics (Mapped to Scientific in UI)
     impact_score: number; // 1-10
