@@ -1,0 +1,1 @@
+ALTER TABLE habits ADD COLUMN IF NOT EXISTS secondary_driver TEXT;

@@ -1,325 +1,431 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { HABIT_Biblio } from "./habitLibrary";
-import type { Habit, HabitLog } from "@/types/habits";
+import { HABIT_Biblio, PROTOCOL_BUNDLES } from "./habitLibrary";
+import { RAW_HABITS, RAW_PROTOCOLS } from "@/data/scientificHabits";
+import type { Habit, HabitLog, Vector, Protocol } from "@/types/habits";
 
+import { isScheduledForToday, freqMap } from "@/lib/scheduling";
+
+// Helper to derive category dynamically as requested
+const deriveCategory = (vector: Vector, state: number): string => {
+    if (vector === 'Social') return 'Spirit';
+    if (vector === 'Circadian') return 'Sleep';
+    if (['Metabolic', 'Thermal', 'Musculoskeletal'].includes(vector)) return 'Body';
+    if (vector === 'Cognitive') {
+        return state > 0 ? 'Focus' : 'Mind';
+    }
+    return 'General';
+};
+
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export const habitService = {
-    // Fetch all habits (for settings/management) - Returns EVERYTHING
+
+    // Fetch Habits (Hybrid: Protocol + Standalone)
     getHabits: async (): Promise<Habit[]> => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Not authenticated");
 
         const { data, error } = await supabase
             .from('habits')
-            .select('*')
+            .select(`
+                *,
+                protocols (
+                    id,
+                    name,
+                    is_active
+                )
+            `)
             .eq('user_id', user.id)
-            .order('created_at', { ascending: true });
+            .order('time_of_day', { ascending: false })
+            .order('name');
 
         if (error) throw error;
-        return data || [];
+        return data as unknown as Habit[];
     },
 
-    // FABRICATED: Create Multiple Habits (Import Protocol)
-    importProtocol: async (habits: Partial<Habit>[]): Promise<string> => {
+    // Fetch Protocols for "Top of List" view
+    getProtocols: async (): Promise<Protocol[]> => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Not authenticated");
 
-        if (habits.length === 0) return "No habits to import.";
-
-        // 1. Fetch existing habits to prevent duplicates
-        const { data: existingHabits } = await supabase
-            .from('habits')
-            .select('name')
-            .eq('user_id', user.id);
-
-        const existingNames = new Set((existingHabits || []).map(h => h.name));
-
-        // 2. Filter out duplicates
-        const newHabits = habits.filter(h => h.name && !existingNames.has(h.name));
-
-        if (newHabits.length === 0) {
-            return `All ${habits.length} habits in this protocol are already active.`;
-        }
-
-        const records = newHabits.map(h => ({
-            ...h,
-            user_id: user.id,
-            is_active: true,
-            start_date: new Date().toISOString()
-        }));
-
-        // 3. Insert new ones
-        const { error } = await supabase
-            .from('habits')
-            .insert(records);
+        const { data, error } = await supabase
+            .from('protocols')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at');
 
         if (error) throw error;
-
-        return `Successfully imported ${newHabits.length} new habits (Skipped ${habits.length - newHabits.length} existing).`;
+        return data as Protocol[];
     },
 
-    // Fetch only ACTIVE habits for today (for Widget/Day View)
+    // Hybrid Filter Logic: Date + Frequency + Active
     getActiveHabitsForToday: async (): Promise<Habit[]> => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Not authenticated");
-
         const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
 
-        const { data, error } = await supabase
+        // 1. Get Logged Habits (completed today)
+        const { data: logs } = await supabase
+            .from('habit_logs')
+            .select('habit_id')
+            .eq('completed_date', todayStr);
+        const loggedIds = new Set(logs?.map(l => l.habit_id));
+
+        // 2. Get Active Habits
+        const { data: habits, error } = await supabase
             .from('habits')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('is_active', true);
+            .select(`
+                *,
+                protocol:protocols!protocol_id (
+                    id,
+                    name,
+                    is_active,
+                    start_date,
+                    frequency_days,
+                    scheduling_config
+                )
+            `)
+            .eq('user_id', user.id);
 
         if (error) throw error;
 
-        // Filter by date range (client side for simplicity with ISO strings)
-        return (data || []).filter((h: Habit) => {
-            const start = h.start_date ? new Date(h.start_date) : new Date(0);
-            const end = h.end_date ? new Date(h.end_date) : new Date(9999, 11, 31);
-            return now >= start && now <= end;
-        });
+        // 3. Filter
+        const dayMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const currentDay = dayMap[now.getDay()];
+        console.log(`[HabitService] Filter DEBUG: Today is ${currentDay} (${now.toISOString()})`);
+
+        return (habits || []).filter((h: any) => {
+            const protocol = h.protocol; // Explicit Alias
+
+            if (h.name.includes("Morning Sunlight")) {
+                console.log(`[HabitCheck] ${h.name} -> Protocol: ${protocol?.name} | Sched: ${JSON.stringify(protocol?.scheduling_config)}`);
+            }
+
+            // Check Protocol Status & Schedule (Priority)
+            if (protocol) {
+                if (protocol.is_active === false) return false;
+
+                // V11 Protocol Schedule Check
+                if (protocol.scheduling_config && protocol.scheduling_config.type !== 'daily') {
+                    if (!isScheduledForToday(protocol.scheduling_config, protocol.start_date)) {
+                        console.log(`[HabitCheck] Filtering OUT ${h.name} due to V11 Schedule`);
+                        return false;
+                    }
+                }
+                // Legacy Protocol Schedule Check
+                else if (protocol.frequency_days && protocol.frequency_days.length > 0) {
+                    if (!protocol.frequency_days.includes(currentDay)) return false;
+                }
+
+                // If Protocol Checks passed, we INCLUDE it.
+                // We do NOT check the habit's individual legacy frequency if it belongs to a protocol, 
+                // because the Protocol overrides it.
+                return true;
+            }
+
+            // Standalone Habit Schedule
+            // (Only check these if NO protocol exists)
+            if (!protocol) {
+                const start = h.start_date ? new Date(h.start_date) : new Date(0);
+                const end = h.end_date ? new Date(h.end_date) : new Date(9999, 11, 31);
+                if (now < start || now > end) return false;
+
+                if (h.frequency_days && h.frequency_days.length > 0) {
+                    if (!h.frequency_days.includes(currentDay)) return false;
+                }
+            }
+
+            return true;
+        }).map((h: any) => ({
+            ...h,
+            protocol: h.protocol,
+            completed: loggedIds.has(h.id)
+        }));
     },
 
-    async createHabit(habit: Partial<Habit>) {
+    // CRUD
+    createHabit: async (habit: Partial<Habit>) => {
         const { data, error } = await supabase
             .from('habits')
             .insert(habit as any)
             .select()
             .single();
-
         if (error) throw error;
-        return data as unknown as Habit;
+        return data;
     },
 
-    async updateHabit(id: string, updates: Partial<Habit>) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("Not authenticated");
-
+    updateHabit: async (id: string, updates: Partial<Habit>) => {
         const { data, error } = await supabase
             .from('habits')
             .update(updates as any)
             .eq('id', id)
-            .eq('user_id', user.id) // Security Hardening
             .select()
             .single();
-
         if (error) throw error;
-        return data as unknown as Habit;
+        return data;
     },
 
-    async deleteHabit(id: string) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("Not authenticated");
-
+    deleteHabit: async (id: string) => {
         const { error } = await supabase
             .from('habits')
             .delete()
-            .eq('id', id)
-            .eq('user_id', user.id); // Security Hardening
+            .eq('id', id);
         if (error) throw error;
     },
 
-    // --- Logs with Snapshotting ---
-    async getHabitLogs() {
-        // 1. Get user's habits first to ensure isolation
-        const habits = await this.getHabits();
-        const habitIds = habits.map(h => h.id);
-
-        if (habitIds.length === 0) return [];
+    // --- PROTOCOL CRUD ---
+    createProtocol: async (protocol: Partial<Protocol>) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("No user");
 
         const { data, error } = await supabase
-            .from('habit_logs')
-            .select('*')
-            .in('habit_id', habitIds)
-            // @ts-ignore
-            .gte('completed_at', new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString()) // Fetch last year for accurate streaks
-            .order('completed_at', { ascending: false });
-
+            .from('protocols')
+            .insert({ ...protocol, user_id: user.id })
+            .select()
+            .single();
         if (error) throw error;
-        return data as unknown as HabitLog[];
+        return data;
     },
 
-    async getDailyLogs(date: string) {
+    updateProtocol: async (id: string, updates: Partial<Protocol>) => {
+        const { data, error } = await supabase
+            .from('protocols')
+            .update(updates as any)
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    },
+
+    deleteProtocol: async (id: string) => {
+        const { error } = await supabase
+            .from('protocols')
+            .delete()
+            .eq('id', id);
+        if (error) throw error;
+    },
+
+    // Import Logic (Legacy Library)
+    importProtocol: async (habits: Partial<Habit>[]): Promise<string> => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Not authenticated");
+        if (habits.length === 0) return "No habits.";
 
-        // Ensure we match the normalization in logHabit
+        const records = habits.map(h => ({
+            ...h,
+            user_id: user.id,
+            is_active: true,
+            start_date: new Date().toISOString(),
+            vector: h.vector || 'Cognitive',
+            primary_driver: h.primary_driver || 'Dopamine',
+            friction: h.friction || 1,
+            state: h.state || 0
+        }));
+
+        const { error } = await supabase.from('habits').insert(records);
+        if (error) throw error;
+        return `Imported ${habits.length} habits.`;
+    },
+
+    // Metrics (Updated)
+    getScientificMetrics: async () => {
+        const habits = await habitService.getActiveHabitsForToday();
+        const totalFriction = habits.reduce((acc, h) => acc + (h.friction || 0), 0);
+        const systemLoad = Math.round((totalFriction / 100) * 100);
+
+        const axes = { 'Body': 0, 'Mind': 0, 'Spirit': 0, 'Sleep': 0, 'Focus': 0 };
+        habits.forEach(h => {
+            const cat = deriveCategory(h.vector, h.state);
+            if (axes[cat as keyof typeof axes] !== undefined) axes[cat as keyof typeof axes]++;
+        });
+
+        const netState = habits.reduce((acc, h) => acc + (h.state || 0), 0);
+
+        return { systemLoad, vectorBalance: axes, netState };
+    },
+
+    toggleHabitLog: async (habitId: string, date: string, completed: boolean) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("No user");
+
+        const d = new Date(date);
+        d.setUTCHours(0, 0, 0, 0);
+        const iso = d.toISOString();
+
+        if (completed) {
+            const { error } = await supabase.from('habit_logs').upsert({
+                habit_id: habitId,
+                user_id: user.id,
+                completed_at: iso
+            }, { onConflict: 'user_id, habit_id, completed_at' });
+            if (error) throw error;
+        } else {
+            const { error } = await supabase.from('habit_logs').delete()
+                .eq('habit_id', habitId)
+                .eq('user_id', user.id)
+                .eq('completed_at', iso);
+            if (error) throw error;
+        }
+    },
+
+    getDailyLogs: async (date: string) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("No user");
         const start = `${date}T00:00:00`;
         const end = `${date}T23:59:59`;
-
         const { data, error } = await supabase
             .from('habit_logs')
             .select('*')
             .eq('user_id', user.id)
             .gte('completed_at', start)
             .lte('completed_at', end);
-
         if (error) throw error;
         return data as unknown as HabitLog[];
     },
 
-    async logHabit(habitId: string, completed_at: string, completed: boolean) { // completed boolean still useful for toggle logic
-        // Use just the date part for the unique constraint check if we want one per day, 
-        // BUT the schema might have changed? Let's assume we want to support multiple logs/day or just one?
-        // For simplicity in this 'Life OS', one per day is usually the standard for habits.
-        // Let's rely on the client passing a full ISO, but checking collision on Date.
-        const datePart = completed_at.split('T')[0];
+    purgeAllHabits: async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("No user");
 
-        if (completed) {
-            // Fetch current habit details to snapshot
-            const { data: habit, error: fetchError } = await supabase
-                .from('habits')
-                .select('energy_cost, impact_score, reward_pathway')
-                .eq('id', habitId)
-                .single();
+        await supabase.from('habit_logs').delete().eq('user_id', user.id);
+        await supabase.from('habits').delete().eq('user_id', user.id);
+        await supabase.from('protocols').delete().eq('user_id', user.id);
+    },
 
-            if (fetchError) throw fetchError;
+    // SEEDING V5 (Unified with V10 Library)
+    seedScientificSystem: async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("No user");
 
-            // Normalize to Midnight UTC for "One Log Per Day" consistency
-            // This ensures uniqueness constraint works even if client sends different times
-            const normalizedDate = new Date(completed_at);
-            normalizedDate.setUTCHours(0, 0, 0, 0);
-            const finalIso = normalizedDate.toISOString();
+        // 1. Purge
+        await supabase.from('habits').delete().eq('user_id', user.id);
+        await supabase.from('protocols').delete().eq('user_id', user.id);
 
-            // Upsert with snapshot
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error("Not authenticated");
-
-            const { data, error } = await supabase
-                .from('habit_logs')
-                .upsert({
-                    habit_id: habitId,
-                    user_id: user.id, // REQUIRED for unique constraint
-                    completed_at: finalIso, // Normalized to T00:00:00.000Z
-                    energy_cost_snapshot: habit.energy_cost,
-                    impact_score_snapshot: habit.impact_score,
-                    reward_pathway_snapshot: habit.reward_pathway
-                } as any, { onConflict: 'user_id, habit_id, completed_at' })
-                .select()
-                .single();
-
+        // 2. Insert Protocols
+        const protocolMap = new Map<string, string>(); // Name -> ID
+        for (const p of PROTOCOL_BUNDLES) {
+            const { data, error } = await supabase.from('protocols').insert({
+                user_id: user.id,
+                name: p.name,
+                description: p.description,
+                is_active: true, // Default active on seed
+                scheduling_config: (p as any).scheduling_config
+            }).select().single();
             if (error) throw error;
-            return data;
-        } else {
-            // Delete log if unchecked (approximate match on day)
-            const startOfDay = `${datePart}T00:00:00`;
-            const endOfDay = `${datePart}T23:59:59`;
+            protocolMap.set(p.name, data.id);
+        }
 
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error("Not authenticated");
+        // 3. Insert Habits (From Biblio)
+        for (const h of HABIT_Biblio) {
+            // Find parent protocols
+            const parentBundles = PROTOCOL_BUNDLES.filter(b => b.habits.includes(h.name || ''));
 
-            const { error } = await supabase
-                .from('habit_logs')
-                .delete()
-                .eq('user_id', user.id) // Security: Ensure we only delete our own
-                .eq('habit_id', habitId)
-                .gte('completed_at', startOfDay)
-                .lte('completed_at', endOfDay);
-            if (error) throw error;
-            return null;
+            const habitPayload = {
+                user_id: user.id,
+                name: h.name,
+                primary_driver: h.primary_driver || 'Dopamine',
+                secondary_driver: h.secondary_driver,
+                vector: h.vector || 'Cognitive',
+                state: h.state || 0,
+                friction: h.friction || 5,
+                duration: h.duration || 15,
+                frequency_days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], // Default Daily
+                category: deriveCategory(h.vector as Vector, h.state || 0),
+                is_active: true,
+                time_of_day: h.time_of_day || 'all_day'
+            };
+
+            if (parentBundles.length === 0) {
+                // Standalone
+                await habitService.createHabit(habitPayload);
+            } else {
+                // Create for each context
+                for (const b of parentBundles) {
+                    const pid = protocolMap.get(b.name);
+                    await habitService.createHabit({ ...habitPayload, protocol_id: pid });
+                }
+            }
         }
     },
 
-    async toggleHabitLog(habitId: string, date: string, completed: boolean) {
-        return this.logHabit(habitId, date, completed);
-    },
 
-    // --- Analytics v3.0 (Chemical & Bio-Cost) ---
-    async getAdvancedMetrics() {
-        const habits = await this.getHabits(); // Gets ALL habits
-        const activeHabits = habits.filter(h => h.is_active); // Only metrics for active? Or all? Usually active.
-        const logs = await this.getHabitLogs(); // Last 30 days
+    // LIBRARY IMPORT
+    importProtocolBundle: async (bundleId: string) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("No user");
 
-        // 1. System Load (Protocol Load)
-        // Calculated from ACTIVE HABITS (The Plan), not just what was done.
-        const totalEnergy = activeHabits.reduce((acc, h) => acc + (h.energy_cost || 0), 0);
-        const systemLoad = totalEnergy; // Total daily load of the protocol
+        const bundle = PROTOCOL_BUNDLES.find(b => b.id === bundleId);
+        if (!bundle) throw new Error("Bundle not found");
 
-        // 2. Pathway Profile (Protocol Design)
-        // Calculated from ACTIVE HABITS (The Plan)
-        const pathwayCounts: Record<string, number> = {};
-        let totalPathways = 0;
+        // 1. Create Protocol
+        const { data: protocol, error: pError } = await supabase.from('protocols').insert({
+            user_id: user.id,
+            name: bundle.name,
+            description: bundle.description,
+            is_active: true
+        }).select().single();
 
-        activeHabits.forEach(h => {
-            if (h.reward_pathway) {
-                pathwayCounts[h.reward_pathway] = (pathwayCounts[h.reward_pathway] || 0) + 1;
-                totalPathways++;
+        if (pError) throw pError;
+
+        // 2. Create Habits
+        for (const habitName of bundle.habits) {
+            const template = HABIT_Biblio.find(h => h.name === habitName);
+            if (template) {
+                await habitService.createHabit({
+                    user_id: user.id,
+                    protocol_id: protocol.id,
+                    name: template.name,
+                    // Map legacy biblio fields if needed, or use defaults
+                    primary_driver: (template as any).primary_driver || 'Dopamine',
+                    secondary_driver: (template as any).secondary_driver,
+                    vector: (template as any).vector || 'Cognitive',
+                    friction: (template as any).friction || 3,
+                    state: (template as any).state || 0,
+                    duration: (template as any).duration || 15,
+                    frequency_days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    is_active: true,
+                    time_of_day: template.time_of_day as any || 'all_day'
+                });
+                console.log(`[ImportProtocol] Creating habit: ${template.name} | SecDriver: ${(template as any).secondary_driver}`);
             }
-        });
-
-        const pathwayProfile = Object.keys(pathwayCounts).reduce((acc, key) => {
-            acc[key] = Math.round((pathwayCounts[key] / (totalPathways || 1)) * 100);
-            return acc;
-        }, {} as Record<string, number>);
-
-        // 3. Neuroplasticity Index
-        const streaks = this.calculateStreaks(activeHabits, logs);
-        const weightedStreakScore = activeHabits.reduce((acc, h) => {
-            const streak = streaks[h.id] || 0;
-            return acc + (streak * (h.impact_score || 1));
-        }, 0);
-        const neuroplasticity = Math.min(100, Math.round((weightedStreakScore / 1500) * 100));
-
-        return {
-            systemLoad,
-            pathwayProfile,
-            neuroplasticity,
-            streaks
-        };
+        }
     },
 
-    calculateStreaks(habits: Habit[], logs: HabitLog[]) {
-        const streaks: Record<string, number> = {};
-        habits.forEach(h => {
-            let currentStreak = 0;
-            const today = new Date();
-            for (let i = 0; i < 365; i++) {
-                const d = new Date();
-                d.setDate(today.getDate() - i);
-                const dateStr = d.toISOString().split('T')[0];
-                // Check if any log exists for this date
-                const hasLog = logs.some(l => l.habit_id === h.id && l.completed_at.startsWith(dateStr));
-                if (hasLog) {
-                    currentStreak++;
-                } else if (i === 0) {
-                    continue; // Today doesn't break streak yet
-                } else {
-                    break;
-                }
+    // SYNC: Update existing habits to match library definitions
+    // (Fixes "Eat the Frog" missing secondary driver for existing users)
+    syncHabitDefinitions: async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("No user");
+
+        const { data: userHabits } = await supabase.from('habits').select('*').eq('user_id', user.id);
+        if (!userHabits) return "No habits found.";
+
+        let updatedCount = 0;
+        for (const h of userHabits) {
+            // Fuzzy Match: Check if template name (with emoji) contains user name (legacy vanilla)
+            // e.g. "🐸 Eat the Frog" includes "Eat the Frog" (Case Insensitive)
+            const template = HABIT_Biblio.find(t =>
+                t.name === h.name ||
+                (t.name?.toLowerCase().includes(h.name.toLowerCase()) && h.name.length > 5) ||
+                (h.name.toLowerCase().includes(t.name?.split(' ').slice(1).join(' ').toLowerCase() || 'xyz'))
+            );
+
+            if (template) {
+                // Update Name (Standardize) + Scientific Fields
+                await supabase.from('habits').update({
+                    name: template.name, // Normalize Name to "Emj [Name]"
+                    primary_driver: (template as any).primary_driver,
+                    secondary_driver: (template as any).secondary_driver,
+                    vector: (template as any).vector,
+                    state: (template as any).state,
+                    friction: (template as any).friction,
+                    duration: (template as any).duration
+                }).eq('id', h.id);
+                updatedCount++;
             }
-            streaks[h.id] = currentStreak;
-        });
-        return streaks;
-    },
-
-    /**
-     * RESET & SEED (Library V2)
-     */
-    async resetAndSeed(userId: string) {
-        console.log("Starting System Reset & Seeding...");
-
-        const { error: deleteError } = await supabase.from('habits').delete().eq('user_id', userId);
-        if (deleteError) throw deleteError;
-
-        const habitsToInsert = HABIT_Biblio.map(h => ({
-            ...h,
-            user_id: userId,
-            is_active: true,
-            start_date: new Date().toISOString()
-        }));
-
-        const { error: insertError } = await supabase.from('habits').insert(habitsToInsert);
-        if (insertError) throw insertError;
-    },
-
-    /**
-     * PURE DELETE (Empty State)
-     */
-    async purgeAllHabits(userId: string) {
-        console.log("Purging all habits...");
-        const { error } = await supabase.from('habits').delete().eq('user_id', userId);
-        if (error) throw error;
+        }
+        return `Synced ${updatedCount} habits with latest scientific data.`;
     }
 };

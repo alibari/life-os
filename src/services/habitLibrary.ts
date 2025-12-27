@@ -1,607 +1,106 @@
-import type { Habit } from "@/types/habits";
+import type { Habit, Protocol } from "@/types/habits";
+
+// 🧪 V10 COMPREHENSIVE LIBRARY (20 Action-Based Protocols)
+// Mapped to 6 Vectors: Cognitive, Metabolic, Thermal, Musculoskeletal, Circadian, Social
 
 export const HABIT_Biblio: Partial<Habit>[] = [
-    // --- MORNING / CORTISOL REDUCTION & DOPAMINE DRIVE ---
-    {
-        name: "☀️ Morning Sunlight (10m)",
-        category: "Body",
-        time_of_day: "morning",
-        type: "positive",
-        impact_score: 10,
-        energy_cost: 2,
-        duration_minutes: 10,
-        reward_pathway: "cortisol_reduction" // Resets circadian rhythm
-    },
-    {
-        name: "💧 Hydration (500ml)",
-        category: "Body",
-        time_of_day: "morning",
-        type: "positive",
-        impact_score: 5,
-        energy_cost: 1,
-        duration_minutes: 1,
-        reward_pathway: "endorphin_relief" // Rehydration feel
-    },
-    {
-        name: "🧘‍♂️ Mindfulness (15m)",
-        category: "Mind",
-        time_of_day: "morning",
-        type: "positive",
-        impact_score: 8,
-        energy_cost: 4,
-        duration_minutes: 15,
-        reward_pathway: "serotonin_satisfaction"
-    },
-    {
-        name: "🥶 Cold Shower",
-        category: "Body",
-        time_of_day: "morning",
-        type: "positive",
-        impact_score: 9,
-        energy_cost: 8, // High friction
-        duration_minutes: 3,
-        reward_pathway: "dopamine_drive" // Spike
-    },
-    {
-        name: "📝 Daily Planning",
-        category: "Focus",
-        time_of_day: "morning",
-        type: "positive",
-        impact_score: 7,
-        energy_cost: 3,
-        duration_minutes: 10,
-        reward_pathway: "dopamine_drive"
-    },
-    {
-        name: "☕ No Coffee First 90m",
-        category: "Body",
-        time_of_day: "morning",
-        type: "positive",
-        impact_score: 6,
-        energy_cost: 5, // Discipline cost
-        duration_minutes: 90,
-        reward_pathway: "cortisol_reduction" // Adenosine clearance
-    },
-    {
-        name: "🤸‍♂️ Stretching / Mobility",
-        category: "Body",
-        time_of_day: "morning",
-        type: "positive",
-        impact_score: 4,
-        energy_cost: 3,
-        duration_minutes: 10,
-        reward_pathway: "endorphin_relief"
-    },
+    // --- FOUNDATION (CIRCADIAN) ---
+    { name: "☀️ Morning Sunlight (20m)", vector: "Circadian", primary_driver: "Cortisol", secondary_driver: "Serotonin", state: -1, friction: 3, duration: 20, time_of_day: "morning" },
+    { name: "🌄 Sunset Viewing (10m)", vector: "Circadian", primary_driver: "Melatonin", secondary_driver: "Serotonin", state: 2, friction: 2, duration: 10, time_of_day: "evening" },
+    { name: "☕ Delay Caffeine (90m)", vector: "Circadian", primary_driver: "Adenosine", secondary_driver: "Cortisol", state: 1, friction: 5, duration: 90, time_of_day: "morning" },
+    { name: "🥶 Cold Plunge / Shower (3m)", vector: "Thermal", primary_driver: "Norepinephrine", secondary_driver: "Dopamine", state: -5, friction: 9, duration: 3, time_of_day: "morning" },
+    { name: "🧘 Horse Stance (2m)", vector: "Musculoskeletal", primary_driver: "Adrenaline", secondary_driver: "Endorphin", state: -3, friction: 6, duration: 2, time_of_day: "morning" },
+    { name: "🚿 Ending Shower Cold (30s)", vector: "Thermal", primary_driver: "Norepinephrine", secondary_driver: "Adrenaline", state: -4, friction: 4, duration: 1, time_of_day: "morning" },
+    { name: "💧 Hydrate + Electrolytes", vector: "Metabolic", primary_driver: "Acetylcholine", secondary_driver: "Adrenaline", state: 1, friction: 1, duration: 1, time_of_day: "morning" },
+    { name: "🚶 Fast Paced Walk (10m)", vector: "Musculoskeletal", primary_driver: "Endorphin", secondary_driver: "Serotonin", state: -2, friction: 3, duration: 10, time_of_day: "morning" },
+    { name: "💡 Bright Light Therapy", vector: "Circadian", primary_driver: "Cortisol", secondary_driver: "Dopamine", state: -2, friction: 2, duration: 20, time_of_day: "morning" },
 
-    // --- DEEP WORK / DOPAMINE ---
-    {
-        name: "🚀 Deep Work Block (90m)",
-        category: "Focus",
-        time_of_day: "morning",
-        type: "positive",
-        impact_score: 10,
-        energy_cost: 7,
-        duration_minutes: 90,
-        reward_pathway: "dopamine_drive"
-    },
-    {
-        name: "📱 Phone in Other Room",
-        category: "Focus",
-        time_of_day: "all_day",
-        type: "positive",
-        impact_score: 8,
-        energy_cost: 4,
-        duration_minutes: 1,
-        reward_pathway: "dopamine_drive" // Focus preservation
-    },
-    {
-        name: "🔇 Noise Cancelling ON",
-        category: "Focus",
-        time_of_day: "all_day",
-        type: "positive",
-        impact_score: 3,
-        energy_cost: 1,
-        duration_minutes: 1,
-        reward_pathway: "dopamine_drive"
-    },
-    {
-        name: "🐸 Eat the Frog (Hardest Task First)",
-        category: "Focus",
-        time_of_day: "morning",
-        type: "positive",
-        impact_score: 9,
-        energy_cost: 8,
-        duration_minutes: 60,
-        reward_pathway: "dopamine_drive"
-    },
+    // --- COGNITIVE (MIND) ---
+    { name: "🚀 Ultradian Work Sprint (90m)", vector: "Cognitive", primary_driver: "Acetylcholine", secondary_driver: "Dopamine", state: -4, friction: 7, duration: 90, time_of_day: "morning" },
+    { name: "📱 Phone in Drawer", vector: "Cognitive", primary_driver: "Dopamine", secondary_driver: "Serotonin", state: 2, friction: 4, duration: 1, time_of_day: "all_day" },
+    { name: "🎧 40Hz Binaural Audio", vector: "Cognitive", primary_driver: "Dopamine", secondary_driver: "Acetylcholine", state: -3, friction: 2, duration: 60, time_of_day: "all_day" },
+    { name: "🧠 High-Intensity Practice", vector: "Cognitive", primary_driver: "Acetylcholine", secondary_driver: "Norepinephrine", state: -4, friction: 8, duration: 20, time_of_day: "afternoon" },
+    { name: "🎲 Random Error Generation", vector: "Cognitive", primary_driver: "Adrenaline", secondary_driver: "Acetylcholine", state: -3, friction: 6, duration: 10, time_of_day: "afternoon" },
+    { name: "😴 NSDR Post-Learning (20m)", vector: "Cognitive", primary_driver: "GABA", secondary_driver: "Acetylcholine", state: 5, friction: 2, duration: 20, time_of_day: "afternoon" },
+    { name: "⚠️ Risk Engagement (Cold/Fast)", vector: "Cognitive", primary_driver: "Adrenaline", secondary_driver: "Dopamine", state: -5, friction: 8, duration: 15, time_of_day: "morning" },
+    { name: "🎵 Alpha Wave Audio", vector: "Cognitive", primary_driver: "Serotonin", secondary_driver: "Acetylcholine", state: 3, friction: 1, duration: 30, time_of_day: "all_day" },
+    { name: "👀 Lateral Eye Movements", vector: "Cognitive", primary_driver: "Amygdala Suppression", secondary_driver: "Acetylcholine", state: -3, friction: 2, duration: 5, time_of_day: "evening" },
+    { name: "📝 Daily Outcome Mapping", vector: "Cognitive", primary_driver: "Dopamine", secondary_driver: "Serotonin", state: 2, friction: 3, duration: 10, time_of_day: "morning" },
+    { name: "🐸 Eat the Frog", vector: "Cognitive", primary_driver: "Dopamine", secondary_driver: "Adrenaline", state: 4, friction: 8, duration: 45, time_of_day: "morning" },
+    { name: "💰 Review Financials", vector: "Cognitive", primary_driver: "Dopamine", secondary_driver: "Cortisol", state: 2, friction: 5, duration: 15, time_of_day: "morning" },
 
-    // --- AFTERNOON / MAINTENANCE ---
-    {
-        name: "🥗 High Protein Lunch",
-        category: "Body",
-        time_of_day: "afternoon",
-        type: "positive",
-        impact_score: 6,
-        energy_cost: 3,
-        duration_minutes: 30,
-        reward_pathway: "serotonin_satisfaction" // Satiety
-    },
-    {
-        name: "🚶‍♂️ Post-Meal Walk (10m)",
-        category: "Body",
-        time_of_day: "afternoon",
-        type: "positive",
-        impact_score: 7,
-        energy_cost: 2,
-        duration_minutes: 10,
-        reward_pathway: "cortisol_reduction" // Glucose control
-    },
-    {
-        name: "😴 NSDR / Power Nap (20m)",
-        category: "Body",
-        time_of_day: "afternoon",
-        type: "positive",
-        impact_score: 8,
-        energy_cost: 2,
-        duration_minutes: 20,
-        reward_pathway: "cortisol_reduction" // Reset
-    },
+    // --- METABOLIC (BODY) ---
+    { name: "🥗 Veggie Starter", vector: "Metabolic", primary_driver: "Insulin", secondary_driver: "GABA", state: 0, friction: 3, duration: 10, time_of_day: "all_day" },
+    { name: "🚶 Post-Meal Walk (10m)", vector: "Metabolic", primary_driver: "Insulin", secondary_driver: "Endorphin", state: 2, friction: 3, duration: 10, time_of_day: "all_day" },
+    { name: "🍳 Savory Breakfast (No Sugar)", vector: "Metabolic", primary_driver: "Insulin", secondary_driver: "Dopamine", state: 1, friction: 4, duration: 20, time_of_day: "morning" },
+    { name: "🔒 Fasting (16:8)", vector: "Metabolic", primary_driver: "Growth Hormone", secondary_driver: "Adrenaline", state: 2, friction: 6, duration: 0, time_of_day: "morning" },
+    { name: "🏃‍♂️ Zone 2 Cardio (45m)", vector: "Metabolic", primary_driver: "Endocannabinoid", secondary_driver: "Endorphin", state: 3, friction: 6, duration: 45, time_of_day: "morning" },
+    { name: "🚶 Empty Stomach Walk", vector: "Metabolic", primary_driver: "Norepinephrine", secondary_driver: "Endorphin", state: 2, friction: 4, duration: 20, time_of_day: "morning" },
+    { name: "🏋️‍♂️ Heavy Compound Lifts", vector: "Musculoskeletal", primary_driver: "Testosterone", secondary_driver: "Endorphin", state: -5, friction: 10, duration: 45, time_of_day: "afternoon" },
+    { name: "🚜 Farmers Carry", vector: "Musculoskeletal", primary_driver: "Testosterone", secondary_driver: "Dopamine", state: -4, friction: 9, duration: 5, time_of_day: "all_day" },
+    { name: "🐒 Dead Hangs (Grip)", vector: "Musculoskeletal", primary_driver: "Testosterone", secondary_driver: "Endorphin", state: -3, friction: 6, duration: 2, time_of_day: "all_day" },
+    { name: "🔥 Norwegian 4x4 Intervals", vector: "Metabolic", primary_driver: "Endorphin", secondary_driver: "Adrenaline", state: -5, friction: 10, duration: 20, time_of_day: "morning" },
+    { name: "👃 Nasal Breathing Only Run", vector: "Metabolic", primary_driver: "Nitric Oxide", secondary_driver: "Endorphin", state: -3, friction: 7, duration: 30, time_of_day: "morning" },
+    { name: "🫁 Recovery Breath Holds", vector: "Metabolic", primary_driver: "CO2 Tolerance", secondary_driver: "GABA", state: 4, friction: 5, duration: 5, time_of_day: "all_day" },
 
-    // --- EVENING / SEROTONIN & OXYTOCIN ---
-    {
-        name: "📵 No Screens After 8PM",
-        category: "Sleep",
-        time_of_day: "evening",
-        type: "positive",
-        impact_score: 9,
-        energy_cost: 6, // Hard to do
-        duration_minutes: 120,
-        reward_pathway: "cortisol_reduction"
-    },
-    {
-        name: "📖 Reading (Fiction)",
-        category: "Mind",
-        time_of_day: "evening",
-        type: "positive",
-        impact_score: 6,
-        energy_cost: 3,
-        duration_minutes: 30,
-        reward_pathway: "serotonin_satisfaction"
-    },
-    {
-        name: "🕯️ Dim Lights (Sunset)",
-        category: "Environment",
-        time_of_day: "evening",
-        type: "positive",
-        impact_score: 5,
-        energy_cost: 1,
-        duration_minutes: 1,
-        reward_pathway: "cortisol_reduction"
-    },
-    {
-        name: "🙏 Gratitude Journal",
-        category: "Spirit",
-        time_of_day: "evening",
-        type: "positive",
-        impact_score: 7,
-        energy_cost: 2,
-        duration_minutes: 5,
-        reward_pathway: "serotonin_satisfaction"
-    },
-    {
-        name: "🍵 Herbal Tea",
-        category: "Body",
-        time_of_day: "evening",
-        type: "positive",
-        impact_score: 3,
-        energy_cost: 1,
-        duration_minutes: 10,
-        reward_pathway: "cortisol_reduction"
-    },
-    {
-        name: "👪 Quality Family Time",
-        category: "Spirit",
-        time_of_day: "evening",
-        type: "positive",
-        impact_score: 10,
-        energy_cost: 3,
-        duration_minutes: 60,
-        reward_pathway: "oxytocin_connection"
-    },
+    // --- RECOVERY (SLEEP) ---
+    { name: "🕯️ Red Light Environment", vector: "Circadian", primary_driver: "Melatonin", secondary_driver: "GABA", state: 4, friction: 2, duration: 60, time_of_day: "evening" },
+    { name: "❄️ Cool Room (65°F)", vector: "Thermal", primary_driver: "Melatonin", secondary_driver: "Adenosine", state: 3, friction: 1, duration: 480, time_of_day: "evening" },
+    { name: "🤐 Tape Mouth (Sleep)", vector: "Metabolic", primary_driver: "Nitric Oxide", secondary_driver: "CO2 Tolerance", state: 2, friction: 2, duration: 480, time_of_day: "evening" },
+    { name: "😮‍💨 Physiological Sighs (5m)", vector: "Circadian", primary_driver: "Acetylcholine", secondary_driver: "GABA", state: 5, friction: 2, duration: 5, time_of_day: "all_day" },
+    { name: "🥶 Cold Face Splash", vector: "Thermal", primary_driver: "Acetylcholine", secondary_driver: "Norepinephrine", state: -3, friction: 3, duration: 1, time_of_day: "all_day" },
+    { name: "🕉️ Humming / Chanting", vector: "Cognitive", primary_driver: "Vagus Tone", secondary_driver: "Oxytocin", state: 4, friction: 2, duration: 5, time_of_day: "evening" },
+    { name: "🧖‍♂️ Sauna / Heat Exposure", vector: "Thermal", primary_driver: "Dynorphin", secondary_driver: "Growth Hormone", state: 4, friction: 5, duration: 20, time_of_day: "evening" },
+    { name: "🪵 Foam Rolling / Mobility", vector: "Musculoskeletal", primary_driver: "Endorphin", secondary_driver: "GABA", state: 3, friction: 4, duration: 15, time_of_day: "evening" },
+    { name: "🌲 Nature Walk (No Pods)", vector: "Cognitive", primary_driver: "Serotonin", secondary_driver: "Endorphin", state: 4, friction: 3, duration: 30, time_of_day: "afternoon" },
+    { name: "📵 Phone Off 1hr Before Bed", vector: "Circadian", primary_driver: "Dopamine", secondary_driver: "Melatonin", state: 3, friction: 6, duration: 60, time_of_day: "evening" },
+    { name: "📖 Fiction Reading (Paper)", vector: "Cognitive", primary_driver: "Serotonin", secondary_driver: "Dopamine", state: 4, friction: 2, duration: 30, time_of_day: "evening" },
 
-    // --- PHYSICAL / ENDORPHIN ---
-    {
-        name: "🏋️‍♂️ Heavy Lifting",
-        category: "Body",
-        time_of_day: "afternoon",
-        type: "positive",
-        impact_score: 9,
-        energy_cost: 8,
-        duration_minutes: 60,
-        reward_pathway: "endorphin_relief"
-    },
-    {
-        name: "🏃‍♂️ Zone 2 Cardio",
-        category: "Body",
-        time_of_day: "morning",
-        type: "positive",
-        impact_score: 8,
-        energy_cost: 6,
-        duration_minutes: 45,
-        reward_pathway: "endorphin_relief"
-    },
-    {
-        name: "🔥 Sauna",
-        category: "Body",
-        time_of_day: "evening",
-        type: "positive",
-        impact_score: 7,
-        energy_cost: 5,
-        duration_minutes: 20,
-        reward_pathway: "endorphin_relief"
-    },
-
-    // --- SYSTEM MAINTENACE ---
-    {
-        name: "🧹 Tidy Workspace",
-        category: "Environment",
-        time_of_day: "evening",
-        type: "positive",
-        impact_score: 4,
-        energy_cost: 3,
-        duration_minutes: 10,
-        reward_pathway: "dopamine_drive" // Prep for tomorrow
-    },
-    {
-        name: "💰 Review Finances",
-        category: "Business",
-        time_of_day: "all_day",
-        type: "positive",
-        impact_score: 6,
-        energy_cost: 5,
-        duration_minutes: 15,
-        reward_pathway: "dopamine_drive"
-    },
-
-    // --- NEGATIVE / "ANTI-HABITS" ---
-    {
-        name: "🍩 Sugar Binge",
-        category: "Body",
-        time_of_day: "all_day",
-        type: "negative",
-        impact_score: 8,
-        energy_cost: 1, // Easy
-        duration_minutes: 1,
-        reward_pathway: "dopamine_drive" // Cheap dopamine
-    },
-    {
-        name: "🍺 Alcohol",
-        category: "Body",
-        time_of_day: "evening",
-        type: "negative",
-        impact_score: 9,
-        energy_cost: 1,
-        duration_minutes: 1,
-        reward_pathway: "serotonin_satisfaction" // False satisfaction
-    },
-    {
-        name: "📱 Doomscrolling",
-        category: "Mind",
-        time_of_day: "all_day",
-        type: "negative",
-        impact_score: 10,
-        energy_cost: 1, // Minimum friction // Zero friction trap
-        duration_minutes: 60,
-        reward_pathway: "dopamine_drive" // Trap
-    },
-    {
-        name: "😡 Complaining",
-        category: "Mind",
-        time_of_day: "all_day",
-        type: "negative",
-        impact_score: 5,
-        energy_cost: 1,
-        duration_minutes: 1,
-        reward_pathway: "dopamine_drive" // Venting
-    },
-    {
-        name: "🍿 Binge Watching",
-        category: "Mind",
-        time_of_day: "evening",
-        type: "negative",
-        impact_score: 7,
-        energy_cost: 1, // Minimum friction
-        duration_minutes: 120,
-        reward_pathway: "dopamine_drive"
-    },
-    // --- SOCIAL & CONNECTION ---
-    {
-        name: "📞 Call Parents",
-        category: "Spirit",
-        time_of_day: "evening",
-        type: "positive",
-        impact_score: 7,
-        energy_cost: 4,
-        duration_minutes: 20,
-        reward_pathway: "oxytocin_connection"
-    },
-    {
-        name: "🤝 Networking",
-        category: "Business",
-        time_of_day: "afternoon",
-        type: "positive",
-        impact_score: 6,
-        energy_cost: 6,
-        duration_minutes: 30,
-        reward_pathway: "dopamine_drive"
-    },
-    {
-        name: "🎁 Random Act of Kindness",
-        category: "Spirit",
-        time_of_day: "all_day",
-        type: "positive",
-        impact_score: 8,
-        energy_cost: 3,
-        duration_minutes: 5,
-        reward_pathway: "serotonin_satisfaction"
-    },
-
-    // --- LEARNING & GROWTH ---
-    {
-        name: "🎸 Practice Instrument",
-        category: "Mind",
-        time_of_day: "evening",
-        type: "positive",
-        impact_score: 7,
-        energy_cost: 6,
-        duration_minutes: 30,
-        reward_pathway: "dopamine_drive" // Skill acquisition
-    },
-    {
-        name: "🗣️ Language Learning",
-        category: "Mind",
-        time_of_day: "morning",
-        type: "positive",
-        impact_score: 6,
-        energy_cost: 5,
-        duration_minutes: 15,
-        reward_pathway: "dopamine_drive"
-    },
-    {
-        name: "🧩 Chess / Logic Puzzle",
-        category: "Mind",
-        time_of_day: "all_day",
-        type: "positive",
-        impact_score: 4,
-        energy_cost: 4,
-        duration_minutes: 15,
-        reward_pathway: "dopamine_drive"
-    },
-
-    // --- ADVANCED BIO-HACKS ---
-    {
-        name: "🌬️ Wim Hof Breathing",
-        category: "Body",
-        time_of_day: "morning",
-        type: "positive",
-        impact_score: 8,
-        energy_cost: 4,
-        duration_minutes: 15,
-        reward_pathway: "endorphin_relief" // Adrenaline/Endorphin release
-    },
-    {
-        name: "🔦 Red Light Therapy",
-        category: "Body",
-        time_of_day: "evening",
-        type: "positive",
-        impact_score: 5,
-        energy_cost: 2,
-        duration_minutes: 15,
-        reward_pathway: "cortisol_reduction"
-    },
-    {
-        name: "🔒 Fasting (16:8)",
-        category: "Body",
-        time_of_day: "morning",
-        type: "positive",
-        impact_score: 8,
-        energy_cost: 7, // Hunger friction
-        duration_minutes: 1,
-        reward_pathway: "cortisol_reduction" // Autophagy
-    },
-    {
-        name: "💊 Supplements",
-        category: "Body",
-        time_of_day: "morning",
-        type: "positive",
-        impact_score: 4,
-        energy_cost: 1,
-        duration_minutes: 2,
-        reward_pathway: "dopamine_drive"
-    },
-    {
-        name: "👣 Grounding / Earthing",
-        category: "Body",
-        time_of_day: "morning",
-        type: "positive",
-        impact_score: 5,
-        energy_cost: 2,
-        duration_minutes: 10,
-        reward_pathway: "cortisol_reduction"
-    },
-    {
-        name: "🤐 Mouth Taping (Sleep)",
-        category: "Sleep",
-        time_of_day: "evening",
-        type: "positive",
-        impact_score: 7,
-        energy_cost: 1,
-        duration_minutes: 1,
-        reward_pathway: "cortisol_reduction"
-    },
-    {
-        name: "🕶️ Blue Light Blockers",
-        category: "Sleep",
-        time_of_day: "evening",
-        type: "positive",
-        impact_score: 6,
-        energy_cost: 1,
-        duration_minutes: 1,
-        reward_pathway: "cortisol_reduction"
-    },
-    {
-        name: "🛑 No Complaining Challenge",
-        category: "Mind",
-        time_of_day: "all_day",
-        type: "positive",
-        impact_score: 7,
-        energy_cost: 5,
-        duration_minutes: 1,
-        reward_pathway: "serotonin_satisfaction"
-    },
-    {
-        name: "👀 20-20-20 Rule",
-        category: "Body",
-        time_of_day: "all_day",
-        type: "positive",
-        impact_score: 3,
-        energy_cost: 2,
-        duration_minutes: 1,
-        reward_pathway: "cortisol_reduction"
-    },
-    {
-        name: "🚶‍♂️ 10k Steps",
-        category: "Body",
-        time_of_day: "all_day",
-        type: "positive",
-        impact_score: 7,
-        energy_cost: 5,
-        duration_minutes: 60,
-        reward_pathway: "endorphin_relief"
-    },
-    {
-        name: "🎮 Video Games (Moderated)",
-        category: "Mind",
-        time_of_day: "evening",
-        type: "positive",
-        impact_score: 3,
-        energy_cost: 1, // Minimum friction // Negative cost, it's fun
-        duration_minutes: 60,
-        reward_pathway: "dopamine_drive"
-    },
-    // --- NEW ADDITIONS FOR BUNDLES ---
-    {
-        name: "🛌 Military Bed Making",
-        category: "Discipline",
-        time_of_day: "morning",
-        type: "positive",
-        impact_score: 3,
-        energy_cost: 2,
-        duration_minutes: 2,
-        reward_pathway: "dopamine_drive" // Small win
-    },
-    {
-        name: "📝 Morning Pages",
-        category: "Mind",
-        time_of_day: "morning",
-        type: "positive",
-        impact_score: 7,
-        energy_cost: 4,
-        duration_minutes: 20,
-        reward_pathway: "serotonin_satisfaction" // Unloading
-    },
-    {
-        name: "🥦 Plant Based Meal",
-        category: "Body",
-        time_of_day: "afternoon",
-        type: "positive",
-        impact_score: 6,
-        energy_cost: 3,
-        duration_minutes: 20,
-        reward_pathway: "serotonin_satisfaction"
-    },
-    {
-        name: "🖼️ Creative Block",
-        category: "Focus",
-        time_of_day: "afternoon",
-        type: "positive",
-        impact_score: 9,
-        energy_cost: 6,
-        duration_minutes: 60,
-        reward_pathway: "dopamine_drive"
-    },
-    {
-        name: "🎵 Listen to Music",
-        category: "Mind",
-        time_of_day: "all_day",
-        type: "positive",
-        impact_score: 5,
-        energy_cost: 1, // Minimum friction
-        duration_minutes: 15,
-        reward_pathway: "dopamine_drive"
-    }
-
+    // --- SPIRIT (SOUL) ---
+    { name: "🚫 No Scrolling (24h)", vector: "Cognitive", primary_driver: "Dopamine", secondary_driver: "Serotonin", state: 0, friction: 8, duration: 0, time_of_day: "all_day" },
+    { name: "🍬 No Processed Sugar", vector: "Metabolic", primary_driver: "Dopamine", secondary_driver: "Insulin", state: 0, friction: 7, duration: 0, time_of_day: "all_day" },
+    { name: "😐 Boredom (Sit with wall)", vector: "Cognitive", primary_driver: "Dopamine", secondary_driver: "Acetylcholine", state: -2, friction: 9, duration: 20, time_of_day: "all_day" },
+    { name: "🤐 Solitude (No Speaking)", vector: "Social", primary_driver: "Serotonin", secondary_driver: "GABA", state: 0, friction: 8, duration: 60, time_of_day: "all_day" },
+    { name: "🤕 Voluntary Discomfort", vector: "Thermal", primary_driver: "Dopamine", secondary_driver: "Adrenaline", state: 4, friction: 8, duration: 5, time_of_day: "morning" },
+    { name: "💀 Negative Visualization", vector: "Cognitive", primary_driver: "Serotonin", secondary_driver: "Dopamine", state: -1, friction: 4, duration: 5, time_of_day: "morning" },
+    { name: "🛌 Make Bed (Military)", vector: "Cognitive", primary_driver: "Dopamine", secondary_driver: "Serotonin", state: 1, friction: 2, duration: 2, time_of_day: "morning" },
+    { name: "👁️ Eye Contact (3m)", vector: "Social", primary_driver: "Oxytocin", secondary_driver: "Serotonin", state: -2, friction: 6, duration: 3, time_of_day: "all_day" },
+    { name: "👂 Active Listening", vector: "Social", primary_driver: "Oxytocin", secondary_driver: "Dopamine", state: -2, friction: 3, duration: 15, time_of_day: "all_day" },
+    { name: "🧘‍♀️ Zazen Meditation", vector: "Cognitive", primary_driver: "GABA", secondary_driver: "Serotonin", state: -4, friction: 5, duration: 20, time_of_day: "morning" },
+    { name: "🍵 Tea Ceremony", vector: "Cognitive", primary_driver: "Serotonin", secondary_driver: "Acetylcholine", state: -2, friction: 3, duration: 15, time_of_day: "morning" },
+    { name: "🙏 Gratitude (3 things)", vector: "Social", primary_driver: "Serotonin", secondary_driver: "Oxytocin", state: -2, friction: 2, duration: 2, time_of_day: "evening" }
 ];
 
 export const PROTOCOL_BUNDLES = [
-    {
-        id: "huberman_baseline",
-        name: "Huberman Baseline",
-        description: "The essential neuro-biological foundation for optimal performance.",
-        habits: ["☀️ Morning Sunlight (10m)", "🥶 Cold Shower", "☕ No Coffee First 90m", "😴 NSDR / Power Nap (20m)", "🏃‍♂️ Zone 2 Cardio"]
-    },
-    {
-        id: "monk_mode",
-        name: "Monk Mode (Deep Work)",
-        description: "High-friction dopamine detox for extreme focus.",
-        habits: ["🚀 Deep Work Block (90m)", "📱 Phone in Other Room", "🔇 Noise Cancelling ON", "🐸 Eat the Frog (Hardest Task First)", "🔒 Fasting (16:8)"]
-    },
-    {
-        id: "sleep_sanctuary",
-        name: "Sleep Sanctuary",
-        description: "Cortisol reduction protocol to maximize recovery.",
-        habits: ["📵 No Screens After 8PM", "🕯️ Dim Lights (Sunset)", "🍵 Herbal Tea", "📖 Reading (Fiction)", "🙏 Gratitude Journal", "🤐 Mouth Taping (Sleep)"]
-    },
-    {
-        id: "dopamine_reboot",
-        name: "Dopamine Reboot",
-        description: "Reset reward pathways by eliminating cheap dopamine.",
-        habits: ["🍩 Sugar Binge", "📱 Doomscrolling", "🍺 Alcohol", "📝 Daily Planning", "🚶‍♂️ 10k Steps", "🧘‍♂️ Mindfulness (15m)"]
-    },
-    {
-        id: "cognitive_elite",
-        name: "Cognitive Elite",
-        description: "Nootropic behavioral stack for maximum mental output.",
-        habits: ["🚀 Deep Work Block (90m)", "💊 Supplements", "🗣️ Language Learning", "🧩 Chess / Logic Puzzle", "🏃‍♂️ Zone 2 Cardio", "📝 Daily Planning"]
-    },
-    {
-        id: "spartan_discipline",
-        name: "Spartan Discipline",
-        description: "Physical and mental hardening protocol.",
-        habits: ["🥶 Cold Shower", "🏋️‍♂️ Heavy Lifting", "🔒 Fasting (16:8)", "🛑 No Complaining Challenge", "🛌 Military Bed Making", "🏃‍♂️ Zone 2 Cardio"]
-    },
-    {
-        id: "zen_master",
-        name: "Zen Master",
-        description: "Mindfulness and presence-based living.",
-        habits: ["🧘‍♂️ Mindfulness (15m)", "🍵 Herbal Tea", "🙏 Gratitude Journal", "🚶‍♂️ Post-Meal Walk (10m)", "🕯️ Dim Lights (Sunset)", "📵 No Screens After 8PM"]
-    },
-    {
-        id: "ceo_morning",
-        name: "CEO Morning",
-        description: "High-leverage start for business leaders.",
-        habits: ["☀️ Morning Sunlight (10m)", "💧 Hydration (500ml)", "📝 Daily Planning", "🐸 Eat the Frog (Hardest Task First)", "💰 Review Finances", "🤝 Networking"]
-    },
-    {
-        id: "artist_flow",
-        name: "Artist's Flow",
-        description: "Creative state optimization and unblocking.",
-        habits: ["📝 Morning Pages", "🚶‍♂️ Post-Meal Walk (10m)", "🖼️ Creative Block", "📱 Phone in Other Room", "📖 Reading (Fiction)", "🎵 Listen to Music"]
-    },
-    {
-        id: "longevity_blueprint",
-        name: "Longevity Blueprint",
-        description: "Bryan Johnson style anti-aging protocol.",
-        habits: ["🔒 Fasting (16:8)", "💊 Supplements", "😴 NSDR / Power Nap (20m)", "🥦 Plant Based Meal", "🕶️ Blue Light Blockers", "👀 20-20-20 Rule"]
-    }
+    // 1. FOUNDATION
+    { id: "solar_anchoring", name: "Solar Anchoring", description: "Master clock regulation.", habits: ["☀️ Morning Sunlight (20m)", "🌄 Sunset Viewing (10m)", "☕ Delay Caffeine (90m)"] },
+    { id: "thermal_shock", name: "Thermal Shock", description: "Adrenaline & Metabolism", habits: ["🥶 Cold Plunge / Shower (3m)", "🧘 Horse Stance (2m)", "🚿 Ending Shower Cold (30s)"] },
+    { id: "un_groggy", name: "The Un-Groggy", description: "Clear sleep inertia.", habits: ["💧 Hydrate + Electrolytes", "🚶 Fast Paced Walk (10m)", "💡 Bright Light Therapy"] },
+
+    // 2. MIND
+    { id: "deep_work", name: "Deep Work Cycle", description: "90m Output Sprint.", habits: ["🚀 Ultradian Work Sprint (90m)", "📱 Phone in Drawer", "🎧 40Hz Binaural Audio"] },
+    { id: "super_learning", name: "Super-Learning", description: "Rapid skill acquisition.", habits: ["🧠 High-Intensity Practice", "🎲 Random Error Generation", "😴 NSDR Post-Learning (20m)"] },
+    { id: "flow_state", name: "Flow State", description: "Transient Hypofrontality.", habits: ["⚠️ Risk Engagement (Cold/Fast)", "🎵 Alpha Wave Audio", "👀 Lateral Eye Movements"] },
+    { id: "executive_morning", name: "Executive Morning", description: "Strategic Clarity.", habits: ["📝 Daily Outcome Mapping", "🐸 Eat the Frog", "💰 Review Financials"] },
+
+    // 3. BODY (METABOLIC)
+    { id: "glucose_guardian", name: "Glucose Guardian", description: "Flatten glucose spikes.", habits: ["🥗 Veggie Starter", "🚶 Post-Meal Walk (10m)", "🍳 Savory Breakfast (No Sugar)"] },
+    { id: "metabolic_fire", name: "Metabolic Fire", description: "Max oxidation.", habits: ["🔒 Fasting (16:8)", "🏃‍♂️ Zone 2 Cardio (45m)", "🚶 Empty Stomach Walk"] },
+    { id: "spartan_strength", name: "Spartan Strength", description: "CNS & Testosterone.", scheduling_config: { type: 'weekly', days: ['Mon', 'Wed', 'Fri'] }, habits: ["🏋️‍♂️ Heavy Compound Lifts", "🚜 Farmers Carry", "🐒 Dead Hangs (Grip)"] },
+    { id: "vo2_max", name: "VO2 Max Engine", description: "Cardiac Efficiency.", scheduling_config: { type: 'weekly', days: ['Wed'] }, habits: ["🔥 Norwegian 4x4 Intervals", "👃 Nasal Breathing Only Run", "🫁 Recovery Breath Holds"] },
+
+    // 4. RECOVERY
+    { id: "sleep_sanctuary", name: "Sleep Sanctuary", description: "Protect Melatonin.", habits: ["🕯️ Red Light Environment", "❄️ Cool Room (65°F)", "🤐 Tape Mouth (Sleep)"] },
+    { id: "vagus_reset", name: "Vagus Nerve Reset", description: "Manual Anxiety Override.", habits: ["😮‍💨 Physiological Sighs (5m)", "🥶 Cold Face Splash", "🕉️ Humming / Chanting"] },
+    { id: "active_recovery", name: "Active Recovery", description: "Rest Day Protocol.", scheduling_config: { type: 'weekly', days: ['Sun'] }, habits: ["🧖‍♂️ Sauna / Heat Exposure", "🪵 Foam Rolling / Mobility", "🌲 Nature Walk (No Pods)"] },
+    { id: "digital_sunset", name: "Digital Sunset", description: "Disconnect Input.", habits: ["📵 Phone Off 1hr Before Bed", "📖 Fiction Reading (Paper)"] },
+
+    // 5. SPIRIT (DOPAMINE)
+    { id: "dopamine_detox", name: "Dopamine Detox", description: "Resensitize Receptors.", scheduling_config: { type: 'monthly', days_of_month: [1] }, habits: ["🚫 No Scrolling (24h)", "🍬 No Processed Sugar", "😐 Boredom (Sit with wall)"] },
+    { id: "monk_mode", name: "Monk Mode", description: "Isolation for Purpose.", scheduling_config: { type: 'weekly', days: ['Sun'] }, habits: ["🤐 Solitude (No Speaking)", "🔒 Fasting (16:8)", "📝 Daily Outcome Mapping"] },
+    { id: "stoic_morning", name: "Stoic Morning", description: "Resilience Building.", habits: ["🤕 Voluntary Discomfort", "💀 Negative Visualization", "🛌 Make Bed (Military)"] },
+
+    // 6. CONNECTION
+    { id: "oxytocin_flood", name: "Oxytocin Flooding", description: "Deep Connection.", habits: ["👁️ Eye Contact (3m)", "👂 Active Listening"] },
+    { id: "zen_master", name: "Zen Master", description: "Presence.", habits: ["🧘‍♀️ Zazen Meditation", "🍵 Tea Ceremony", "🙏 Gratitude (3 things)"] }
 ];
