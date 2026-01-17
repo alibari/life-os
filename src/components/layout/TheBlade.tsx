@@ -108,7 +108,7 @@ export function TheBlade({ collapsed, onToggle }: TheBladeProps) {
   return (
     <aside
       className={cn(
-        "h-screen sticky top-0 flex flex-col border-r border-white/5 bg-black z-50 transition-all duration-300",
+        "h-screen sticky top-0 flex flex-col border-r border-white/5 bg-background z-50 transition-all duration-300",
         collapsed ? "w-20" : "w-64"
       )}
     >
@@ -161,7 +161,7 @@ export function TheBlade({ collapsed, onToggle }: TheBladeProps) {
                     </Button>
                   </Link>
                 </TooltipTrigger>
-                <TooltipContent side="right" className="bg-black border border-white/10 text-white font-mono text-xs">
+                <TooltipContent side="right" className="bg-background border border-white/10 text-white font-mono text-xs">
                   {item.label}
                 </TooltipContent>
               </Tooltip>
@@ -233,7 +233,7 @@ export function TheBlade({ collapsed, onToggle }: TheBladeProps) {
                     {user.user_metadata?.full_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase()}
                   </button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px] bg-black border border-white/10 text-white">
+                <DialogContent className="sm:max-w-[425px] bg-background border border-white/10 text-white">
                   <DialogHeader>
                     <DialogTitle className="font-mono uppercase tracking-widest text-sm">Identity Configuration</DialogTitle>
                   </DialogHeader>

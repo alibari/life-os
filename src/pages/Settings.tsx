@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Shield, Activity, Database, Cpu, RefreshCw, Layers, UploadCloud, Check, Search, Download, Trash2, Target } from "lucide-react";
+import { Shield, Activity, Database, Cpu, RefreshCw, Layers, UploadCloud, Check, Search, Download, Trash2, Target, Pill } from "lucide-react";
 import { healthService } from "@/services/health";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { MetricDetailView } from "@/components/cockpit/MetricDetailView";
 import { HabitManager } from "@/components/settings/HabitManager";
+import { SupplementsManager } from "@/components/settings/SupplementsManager";
 
 export default function Settings() {
     // 1. Hardware Metadata
@@ -43,7 +44,7 @@ export default function Settings() {
     return (
         <div className="min-h-screen pb-20 cockpit-canvas flex flex-col">
             {/* STICKY HEADER & TABS */}
-            <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl pt-8 px-6 pb-4 mb-6 shadow-2xl">
+            <div className="sticky top-0 z-40 bg-transparent backdrop-blur-sm pt-8 px-6 pb-4 mb-6">
                 <PageHeader
                     title="CONTROL CENTER"
                     subtitle="BIO-DATA & BEHAVIORAL PROTOCOLS"
@@ -56,6 +57,7 @@ export default function Settings() {
                         {[
                             { id: "bio-data", label: "Bio Metrics Data", icon: Database },
                             { id: "behavioral", label: "Behavioral", icon: Layers },
+                            { id: "supplements", label: "Supplements Stack", icon: Pill },
                             { id: "ingest", label: "Ingest", icon: UploadCloud },
                         ].map((tab) => (
                             <button
@@ -99,6 +101,13 @@ export default function Settings() {
                 {activeTab === "behavioral" && (
                     <div className="w-full max-w-5xl mx-auto">
                         <HabitManager />
+                    </div>
+                )}
+
+                {/* --- SUPPLEMENTS TAB --- */}
+                {activeTab === "supplements" && (
+                    <div className="w-full max-w-5xl mx-auto">
+                        <SupplementsManager />
                     </div>
                 )}
 

@@ -124,6 +124,8 @@ export function HabitListWidget() {
         }
     });
 
+
+
     // --- METRICS ---
     const completedIds = new Set(logs?.map(l => l.habit_id));
     const totalHabits = habits?.length || 0;
@@ -586,6 +588,10 @@ export function HabitListWidget() {
             <div className="flex-1 relative flex flex-col p-4 overflow-hidden">
                 <ScrollArea className="flex-1 -mx-2 px-2 [&_[data-radix-scroll-area-thumb]]:bg-transparent hover:[&_[data-radix-scroll-area-thumb]]:bg-zinc-700/50 [&_[data-radix-scroll-area-thumb]]:transition-colors">
                     <div className="flex flex-col pb-10">
+
+                        {/* METRICS DASHBOARD (V5.3) */}
+
+
                         {/* Unified Render Logic: Always Grouped */}
                         {renderGroupedView(currentHabits || [])}
 

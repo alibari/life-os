@@ -6,8 +6,8 @@
 
 @layer base {
   :root {
-    /* OLED Black Theme - Cyberpunk Minimalist */
-    --background: 0 0% 0%;
+    /* Premium Dark Theme - Soft Zinc */
+    --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
 
     --card: 240 6% 10%;
@@ -44,7 +44,7 @@
     --growth: 160 84% 39%;
 
     /* Sidebar */
-    --sidebar-background: 0 0% 0%;
+    --sidebar-background: 240 10% 3.9%;
     --sidebar-foreground: 0 0% 98%;
     --sidebar-primary: 160 84% 39%;
     --sidebar-primary-foreground: 0 0% 0%;
@@ -98,12 +98,6 @@
     font-family: 'Inter', sans-serif;
   }
 
-  /* Responsive Zoom for Laptops vs Monitors */
-  @media (max-width: 1700px) {
-    html {
-      zoom: 90%;
-    }
-  }
 
   h1,
   h2,

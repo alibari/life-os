@@ -2,7 +2,8 @@ export type PrimaryDriver =
     | 'Dopamine' | 'Norepinephrine' | 'Acetylcholine' | 'Serotonin' | 'GABA'
     | 'Cortisol' | 'Endorphin' | 'Oxytocin' | 'Adenosine' | 'Testosterone'
     | 'Melatonin' | 'Dynorphin' | 'Endocannabinoid' | 'Tyrosine' | 'mTOR' | 'Growth Hormone' | 'Orexin'
-    | 'Insulin' | 'Nitric Oxide' | 'Vagus Tone' | 'Lymph' | 'CSF' | 'Amygdala Suppression' | string;
+    | 'Insulin' | 'Nitric Oxide' | string;
+// Legacy drivers (Lymph, CSF, Vagus Tone) are now mapped to Core 16
 
 export type Vector =
     | 'Cognitive' | 'Metabolic' | 'Thermal' | 'Musculoskeletal' | 'Circadian' | 'Social'
@@ -47,7 +48,6 @@ export interface Habit {
     is_active: boolean;
 
     // Legacy Scheduling & Config
-    frequency_days: string[]; // Legacy
     scheduling_config?: SchedulingConfig; // V11
 
     time_of_day: 'morning' | 'afternoon' | 'evening' | 'all_day';

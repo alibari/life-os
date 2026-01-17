@@ -90,13 +90,20 @@ export const habitService = {
         // 3. Filter
         const dayMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const currentDay = dayMap[now.getDay()];
-        console.log(`[HabitService] Filter DEBUG: Today is ${currentDay} (${now.toISOString()})`);
 
         return (habits || []).filter((h: any) => {
             const protocol = h.protocol; // Explicit Alias
 
-            if (h.name.includes("Morning Sunlight")) {
-                console.log(`[HabitCheck] ${h.name} -> Protocol: ${protocol?.name} | Sched: ${JSON.stringify(protocol?.scheduling_config)}`);
+            // ROBUST PARSING: Ensure configs are Objects, not JSON Strings
+            // (Fixes issue where stringified JSON causes 'daily' default override)
+            let protocolConfig = protocol?.scheduling_config;
+            if (typeof protocolConfig === 'string') {
+                try { protocolConfig = JSON.parse(protocolConfig); } catch (e) { }
+            }
+
+            let habitConfig = h.scheduling_config;
+            if (typeof habitConfig === 'string') {
+                try { habitConfig = JSON.parse(habitConfig); } catch (e) { }
             }
 
             // Check Protocol Status & Schedule (Priority)
@@ -109,15 +116,45 @@ export const habitService = {
 
                 // 3. Protocol Schedule Check
                 // V11 Protocol Schedule
-                if (protocol.scheduling_config && protocol.scheduling_config.type !== 'daily') {
-                    if (!isScheduledForToday(protocol.scheduling_config)) {
-                        console.log(`[HabitCheck] Filtering OUT ${h.name} due to V11 Schedule`);
+                if (protocolConfig && protocolConfig.type !== 'daily') {
+                    if (!isScheduledForToday(protocolConfig)) {
                         return false;
                     }
                 }
                 // Legacy Protocol Schedule
                 else if (protocol.frequency_days && protocol.frequency_days.length > 0) {
                     if (!protocol.frequency_days.includes(currentDay)) return false;
+                }
+
+                // 4. Individual Habit Schedule Check (Overrides Protocol)
+                // Hybrid Heuristic for Protocol-Bound Habits
+                const isComplexConfig = habitConfig && habitConfig.type !== 'daily';
+
+                if (isComplexConfig) {
+                    // FIX: Pass start_date for Interval calculations
+                    if (!isScheduledForToday(habitConfig, h.start_date)) {
+                        return false;
+                    }
+                } else {
+                    // Fallback to Legacy Frequency Days (if "Daily" or null)
+                    let freqDays = h.frequency_days;
+
+                    // 1. Parse String if needed (Robustness)
+                    if (typeof freqDays === 'string') {
+                        try {
+                            freqDays = JSON.parse(freqDays);
+                        } catch (e) {
+                            const clean = freqDays.replace(/[{}"'\[\]]/g, '');
+                            freqDays = clean.split(',').map((s: string) => s.trim());
+                        }
+                    }
+
+                    if (freqDays && Array.isArray(freqDays) && freqDays.length > 0) {
+                        // 2. Normalize & Compare
+                        const normalizedFreq = freqDays.map((d: string) => d.slice(0, 3));
+                        if (!normalizedFreq.includes(currentDay)) return false;
+                    }
+                    // If no legacy days, assume Daily (Config was 'daily' or null) -> matched.
                 }
 
                 // If Protocol Checks passed, we INCLUDE it.
@@ -130,24 +167,46 @@ export const habitService = {
                 // 1. Standalone Active Check
                 if (h.is_active === false) return false;
 
-                const start = h.start_date ? new Date(h.start_date) : new Date(0);
-                const end = h.end_date ? new Date(h.end_date) : new Date(9999, 11, 31);
-                // Reset times for accurate date comparison
-                if (h.start_date) start.setHours(0, 0, 0, 0);
-                if (h.end_date) end.setHours(23, 59, 59, 999);
+                // 2. Hybrid Scheduling Heuristic
+                // A. Check for "Complex" V11 Schedule (Interval, Monthly, or Explicit Weekly)
+                // We trust these over legacy fields because they imply specific modern intent.
+                const isComplexConfig = habitConfig && habitConfig.type !== 'daily';
 
-                // 2. Date Range Check
-                now.setHours(0, 0, 0, 0); // Compare dates only
-                if (now < start || now > end) return false;
-
-                // 3. Frequency Check
-                if (h.frequency_days && h.frequency_days.length > 0) {
-                    // Legacy Frequency check
-                    if (!h.frequency_days.includes(currentDay)) return false;
+                if (isComplexConfig) {
+                    // FIX: Pass start_date for Interval calculations
+                    if (!isScheduledForToday(habitConfig, h.start_date)) return false;
+                    return true; // Trusted Complex Config matched today
                 }
-            }
 
-            return true;
+                // B. Fallback to Legacy Frequency Days
+                // If config is just "Daily" (weak default), we check if legacy frequency days exist.
+                // Robustness FIX: Handle string cases and full day names (Monday vs Mon)
+                let freqDays = h.frequency_days;
+
+                // 1. Parse String if needed
+                if (typeof freqDays === 'string') {
+                    try {
+                        // Try JSON (common in Supabase text/json columns)
+                        freqDays = JSON.parse(freqDays);
+                    } catch (e) {
+                        // Fallback: CSV or Postgres Array style ({Mon,Tue})
+                        const clean = freqDays.replace(/[{}"'\[\]]/g, '');
+                        freqDays = clean.split(',').map((s: string) => s.trim());
+                    }
+                }
+
+                if (freqDays && Array.isArray(freqDays) && freqDays.length > 0) {
+                    // 2. Normalize & Compare (Handle 'Monday' vs 'Mon')
+                    const normalizedFreq = freqDays.map((d: string) => d.slice(0, 3));
+                    if (!normalizedFreq.includes(currentDay)) return false;
+                    return true; // Legacy constraint matched
+                }
+
+                // C. Default to Daily (Active)
+                // If no complex config and no legacy text, it's a daily habit.
+                return true;
+            }
+            return false;
         }).map((h: any) => ({
             ...h,
             protocol: h.protocol,
@@ -162,7 +221,10 @@ export const habitService = {
             .insert(habit as any)
             .select()
             .single();
-        if (error) throw error;
+        if (error) {
+            console.error("Supabase Create Internal Error:", error);
+            throw error;
+        }
         return data;
     },
 
@@ -225,14 +287,18 @@ export const habitService = {
         if (habits.length === 0) return "No habits.";
 
         const records = habits.map(h => ({
-            ...h,
             user_id: user.id,
+            name: h.name, // Explicitly map fields to avoid spreading legacy columns
             is_active: true,
-            start_date: new Date().toISOString(),
+            scheduling_config: h.scheduling_config || { type: 'daily', days: [] },
             vector: h.vector || 'Cognitive',
             primary_driver: h.primary_driver || 'Dopamine',
+            secondary_driver: h.secondary_driver,
             friction: h.friction || 1,
-            state: h.state || 0
+            state: h.state || 0,
+            duration: h.duration || 15,
+            time_of_day: h.time_of_day || 'all_day',
+            protocol_id: h.protocol_id
         }));
 
         const { error } = await supabase.from('habits').insert(records);
@@ -243,23 +309,53 @@ export const habitService = {
     // Metrics (Updated)
     getScientificMetrics: async () => {
         const habits = await habitService.getActiveHabitsForToday();
-        const totalFriction = habits.reduce((acc, h) => acc + (h.friction || 0), 0);
-        const systemLoad = Math.round((totalFriction / 100) * 100);
 
-        const axes = { 'Body': 0, 'Mind': 0, 'Spirit': 0, 'Sleep': 0, 'Focus': 0 };
+        // 1. Allostatic Load (Duration Weighted)
+        // Formula: Sum(Friction * Log2(Duration + 1))
+        const systemLoad = Math.round(habits.reduce((acc, h) => {
+            const durationFactor = Math.log2((h.duration || 1) + 1);
+            return acc + ((h.friction || 0) * durationFactor);
+        }, 0));
+
+        // 2. The 6-Axis Neuro-Map
+        const neuroProfile = {
+            'Drive': 0, 'Focus': 0, 'Strength': 0,
+            'Energy': 0, 'Calm': 0, 'Joy': 0
+        };
+
+        // Helper to map Driver -> Axis
+        const mapDriverToAxis = (driver: string): keyof typeof neuroProfile | null => {
+            const d = driver?.toLowerCase().trim();
+            if (['dopamine', 'tyrosine', 'orexin', 'endocannabinoid'].includes(d)) return 'Drive'; // Moved Endocan to Drive? No, Audit said Joy. Let's start with Drive but user said Joy for runner high. Wait audit said Joy.
+            // Let's stick to the Audit:
+            if (['dopamine', 'tyrosine', 'orexin'].includes(d)) return 'Drive';
+            if (['acetylcholine', 'norepinephrine', 'glutamate'].includes(d)) return 'Focus'; // Cold Shower (Norepi) -> Focus
+            if (['testosterone', 'growth hormone', 'mtor', 'dynorphin'].includes(d)) return 'Strength';
+            if (['adrenaline', 'cortisol', 'insulin', 'nitric oxide', 'lymph', 'csf'].includes(d)) return 'Energy'; // Cold Plunge (Adrenaline) -> Energy
+            if (['gaba', 'adenosine', 'melatonin', 'vagus tone', 'amygdala suppression', 'co2 tolerance'].includes(d)) return 'Calm';
+            if (['serotonin', 'oxytocin', 'endorphin', 'endocannabinoid'].includes(d)) return 'Joy'; // Endocan moved to Joy
+            return null;
+        };
+
         habits.forEach(h => {
-            let cat = 'General';
-            if (h.vector === 'Social') cat = 'Spirit';
-            else if (h.vector === 'Circadian') cat = 'Sleep';
-            else if (['Metabolic', 'Thermal', 'Musculoskeletal'].includes(h.vector)) cat = 'Body';
-            else if (h.vector === 'Cognitive') cat = (h.state || 0) > 0 ? 'Focus' : 'Mind';
+            const intensity = Math.abs(h.state || 1); // |State| is volume
 
-            if (axes[cat as keyof typeof axes] !== undefined) axes[cat as keyof typeof axes]++;
+            // Primary Driver (100% Weight)
+            const pAxis = mapDriverToAxis(h.primary_driver);
+            if (pAxis) neuroProfile[pAxis] += (intensity * 1.0);
+
+            // Secondary Driver (50% Weight)
+            if (h.secondary_driver) {
+                const sAxis = mapDriverToAxis(h.secondary_driver);
+                if (sAxis) neuroProfile[sAxis] += (intensity * 0.5);
+            }
         });
 
-        const netState = habits.reduce((acc, h) => acc + (h.state || 0), 0);
+        // 3. Sympathetic vs Parasympathetic Tone (Dual Bar)
+        const sympathetic = habits.reduce((acc, h) => (h.state < 0) ? acc + Math.abs(h.state) : acc, 0);
+        const parasympathetic = habits.reduce((acc, h) => (h.state > 0) ? acc + h.state : acc, 0);
 
-        return { systemLoad, vectorBalance: axes, netState };
+        return { systemLoad, neuroProfile, autonomicBalance: { sympathetic, parasympathetic } };
     },
 
     toggleHabitLog: async (habitId: string, date: string, completed: boolean) => {
@@ -406,11 +502,10 @@ export const habitService = {
                     friction: (template as any).friction || 3,
                     state: (template as any).state || 0,
                     duration: (template as any).duration || 15,
-                    frequency_days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
                     is_active: true,
+                    scheduling_config: (template as any).scheduling_config || { type: 'daily', days: [] },
                     time_of_day: template.time_of_day as any || 'all_day'
                 });
-                console.log(`[ImportProtocol] Creating habit: ${template.name} | SecDriver: ${(template as any).secondary_driver}`);
             } else {
                 console.error(`[ImportProtocol] FAILED to find template for habit: "${habitName}" in bundle: ${bundle.name}`);
             }

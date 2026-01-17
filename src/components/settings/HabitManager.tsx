@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, Edit2, Zap, Brain, Activity, Clock, Battery, Share2, AlertTriangle, Play, Pause, Thermometer, Calendar, BookOpen, MoreVertical, X, RotateCcw, Settings, CheckCircle2, Link2, ArrowRight, Sun, Moon, Timer, FlaskConical, CalendarClock, ChevronsUpDown, Check, Atom, Search } from "lucide-react";
+import { Plus, Trash2, Edit2, Zap, Brain, Activity, Clock, Battery, Share2, AlertTriangle, Play, Pause, Thermometer, Calendar, BookOpen, MoreVertical, X, RotateCcw, Settings, CheckCircle2, Link2, ArrowRight, Sun, Moon, Timer, FlaskConical, CalendarClock, ChevronsUpDown, Check, Atom, Search, Gauge, Waves } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { habitService } from "@/services/habitService";
 import type { Habit, Protocol, Vector } from "@/types/habits";
 import { PROTOCOL_BUNDLES, HABIT_Biblio } from "@/services/habitLibrary";
+import { calculateScientificMetrics, ScientificStats, AXIS_COLORS, NeuroAxis, formatSmartDuration } from "@/lib/scientificMetrics";
+import { CircadianPhaseGrid } from "@/components/cockpit/CircadianPhaseGrid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -36,31 +38,22 @@ import {
 } from "@/components/ui/popover"
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer, RadarChart, PolarGrid, Radar, Legend } from 'recharts';
+import { RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer, RadarChart, PolarGrid, Radar, Legend, ScatterChart, Scatter, XAxis, YAxis, ZAxis, Tooltip, Cell } from 'recharts';
 import { isScheduledForToday } from "@/lib/scheduling";
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-// Helpers reused from service for local calc
-const deriveCategory = (vector: Vector, state: number): string => {
-    // V10 / V9 Mapping
-    if (['Social', 'Spirit'].includes(vector)) return 'Spirit';
-    if (['Circadian', 'Sleep', 'Autonomic', 'Rest'].includes(vector)) return 'Sleep'; // Recovery Axis
-    if (['Metabolic', 'Thermal', 'Musculoskeletal', 'Nutritional'].includes(vector)) return 'Body'; // Physiology Axis
-    if (vector === 'Cognitive') return state > 0 ? 'Focus' : 'Mind'; // Active vs Passive Cognition
-    if (['Focus', 'Environment'].includes(vector)) return 'Focus';
-    return 'General';
-};
+// Removed local deriveCategory and calculateStats in favor of shared library logic
+
 
 
 // --- DYNAMIC DRIVER LIST ENGINE ---
 // 1. Strict Scientific List (Baseline)
 const BASE_SCIENTIFIC_DRIVERS = [
-    'Dopamine', 'Serotonin', 'Adrenaline', 'Cordisol', 'Endorphin', 'Oxytocin',
-    'Acetylcholine', 'GABA', 'Adenosine', 'Testosterone', 'Melatonin',
-    'Norepinephrine', 'Nitric Oxide', 'Dynorphin', 'Endocannabinoid',
-    'Glutamate', 'Histamine', 'Orexin', 'Ghrelin', 'Leptin', 'Insulin',
-    'Vagus Tone', 'Growth Hormone', 'Amygdala Suppression'
+    'Dopamine', 'Serotonin', 'Adrenaline', 'Acetylcholine',
+    'GABA', 'Endorphin', 'Oxytocin', 'Cortisol',
+    'Testosterone', 'Adenosine', 'Melatonin', 'Norepinephrine',
+    'Growth Hormone', 'Insulin', 'Dynorphin', 'Nitric Oxide'
 ];
 
 // 2. Chemical Color Mapping (Lab Grade)
@@ -144,7 +137,7 @@ function MolecularStreamSelector({
     return (
         <div className="flex items-center gap-0 w-full group/stream py-1 relative">
             {/* 1. FIXED ANCHOR (Search Toggle) */}
-            <div className="shrink-0 z-20 flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold font-mono border-r border-white/10 pr-4 mr-1 min-w-[140px] bg-black h-8 group/anchor">
+            <div className="shrink-0 z-20 flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold font-mono border-r border-white/10 pr-4 mr-1 min-w-[140px] bg-background h-8 group/anchor">
                 {isSearching ? (
                     <div className="flex items-center w-full animate-in fade-in slide-in-from-left-2 duration-200">
                         <input
@@ -409,9 +402,7 @@ export function HabitManager() {
     const [habitForm, setHabitForm] = useState<Partial<Habit>>({
         name: '', friction: 1, state: 0, duration: 15,
         primary_driver: 'Dopamine', vector: 'Cognitive', is_active: true,
-        time_of_day: 'all_day',
-        frequency_days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        start_date: new Date().toISOString().split('T')[0]
+        time_of_day: 'all_day'
     });
 
     // Auto-Sync Data Integrity on Mount (V10 Migration)
@@ -423,10 +414,27 @@ export function HabitManager() {
 
     useEffect(() => {
         if (editingHabit) {
+            // Safe Initialization for Legacy Data
+            let initialConfig = editingHabit.scheduling_config;
+
+            if (!initialConfig) {
+                // Fallback to legacy frequency_days if available
+                // @ts-ignore
+                if ((editingHabit as any).frequency_days && (editingHabit as any).frequency_days.length > 0) {
+                    initialConfig = {
+                        type: 'weekly',
+                        // @ts-ignore
+                        days: (editingHabit as any).frequency_days
+                    };
+                } else {
+                    // Default to Daily
+                    initialConfig = { type: 'daily', days: [] };
+                }
+            }
+
             setHabitForm({
                 ...editingHabit,
-                start_date: editingHabit.start_date ? editingHabit.start_date.split('T')[0] : new Date().toISOString().split('T')[0],
-                end_date: editingHabit.end_date ? editingHabit.end_date.split('T')[0] : undefined
+                scheduling_config: initialConfig,
             });
         } else {
             resetHabitForm();
@@ -453,8 +461,6 @@ export function HabitManager() {
             name: '', friction: 1, state: 0, duration: 15,
             primary_driver: 'Dopamine', vector: 'Cognitive', is_active: true,
             time_of_day: 'all_day',
-            frequency_days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-            start_date: new Date().toISOString().split('T')[0],
             protocol_id: targetProtocolId // Preserve context if set
         });
     }
@@ -463,66 +469,27 @@ export function HabitManager() {
     const { data: habits } = useQuery({ queryKey: ['habits'], queryFn: habitService.getHabits });
     const { data: protocols } = useQuery({ queryKey: ['protocols'], queryFn: habitService.getProtocols });
 
-    // CLIENT-SIDE REALTIME METRICS ENGINE (V7.2 Multi-Select + Deep Analysis)
-    const metrics = useMemo(() => {
+    // CLIENT-SIDE REALTIME METRICS ENGINE (V11 SHARED SCIENTIFIC CORE)
+    const metrics: { current: ScientificStats, simulated: ScientificStats | null } = useMemo(() => {
         const activeHabits = (habits || []).filter(h => {
-            // 1. Basic Active Check
+            // 1. Basic Active Check + Schedule Check
             if (!h.is_active) return false;
 
-            // 2. Protocol Check
+            // 2. Protocol & Schedule Logic
             if (h.protocol_id) {
                 const p = protocols?.find(p => p.id === h.protocol_id);
                 if (!p || !p.is_active) return false;
                 if (p.scheduling_config && !isScheduledForToday(p.scheduling_config)) return false;
-            }
-
-            // 4. Schedule Check (Standalone - if it has config)
-            if (!h.protocol_id && h.scheduling_config && !isScheduledForToday(h.scheduling_config, h.start_date)) {
+            } else if (h.scheduling_config && !isScheduledForToday(h.scheduling_config)) {
                 return false;
             }
-
             return true;
         });
 
-        const calculateStats = (habitList: any[]) => {
-            const totalFriction = habitList.reduce((acc, h) => acc + (h.friction || 0), 0);
-            const systemLoad = Math.round((totalFriction / 100) * 100);
+        // Use Shared Logic
+        const current = calculateScientificMetrics(activeHabits);
 
-            // Vector Balance
-            const axes = { 'Body': 0, 'Mind': 0, 'Spirit': 0, 'Sleep': 0, 'Focus': 0 };
-            habitList.forEach(h => {
-                const cat = deriveCategory(h.vector, h.state);
-                // @ts-ignore
-                if (axes[cat] !== undefined) axes[cat]++;
-            });
-
-            // Autonomic Analysis (Sympathetic vs Parasympathetic)
-            const autonomic = { sympathetic: 0, parasympathetic: 0, neutral: 0 };
-            habitList.forEach(h => {
-                if ((h.state || 0) < 0) autonomic.sympathetic++;
-                else if ((h.state || 0) > 0) autonomic.parasympathetic++;
-                else autonomic.neutral++;
-            });
-
-            // Neurochemical Profile
-            const drivers: Record<string, number> = {};
-            habitList.forEach(h => {
-                const driver = h.primary_driver || 'Dopamine';
-                drivers[driver] = (drivers[driver] || 0) + 1;
-            });
-            // Sort drivers by count desc
-            const neuroProfile = Object.entries(drivers)
-                .sort((a, b) => b[1] - a[1])
-                .map(([name, count]) => ({ name, count, percent: Math.round((count / habitList.length) * 100) }));
-
-            const netState = habitList.reduce((acc, h) => acc + (h.state || 0), 0);
-
-            return { systemLoad, vectorBalance: axes, netState, totalFriction, autonomic, neuroProfile };
-        };
-
-        const current = calculateStats(activeHabits);
-
-        // Simulation Logic
+        // Simulation Support
         let simulated = null;
         if (selectedBundleIds.length > 0) {
             const allNewHabits = selectedBundleIds.flatMap(id => {
@@ -532,23 +499,43 @@ export function HabitManager() {
                     const template = HABIT_Biblio.find(h => h.name === name);
                     if (!template) return null;
                     return {
+                        // Mock minimal habit for stats
+                        id: 'sim-' + name,
+                        name: template.name,
                         friction: (template as any).friction || 5,
                         vector: (template as any).vector || 'Cognitive',
                         state: (template as any).state || 0,
-                        primary_driver: (template as any).primary_driver || 'Dopamine'
-                    };
+                        primary_driver: (template as any).primary_driver || 'Dopamine',
+                        time_of_day: (template as any).time_of_day || 'anytime'
+                    } as Habit;
                 }).filter(Boolean);
             });
-
-            simulated = calculateStats([...activeHabits, ...allNewHabits]);
+            // Calculate stats on merged list (Current + Simulated)
+            simulated = calculateScientificMetrics([...activeHabits, ...allNewHabits]);
         }
 
-        return { ...current, simulated };
+        return { current, simulated };
     }, [habits, protocols, selectedBundleIds]);
 
-    const createHabitMutation = useMutation({ mutationFn: habitService.createHabit, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['habits'] }); setIsCreateOpen(false); toast.success("Habit Created"); } });
-    const updateHabitMutation = useMutation({ mutationFn: ({ id, updates }: { id: string, updates: Partial<Habit> }) => habitService.updateHabit(id, updates), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['habits'] }); setIsCreateOpen(false); setEditingHabit(null); toast.success("Updated"); } });
-    const deleteHabitMutation = useMutation({ mutationFn: habitService.deleteHabit, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['habits'] }); toast.success("Deleted"); } });
+    // Derived Data for Charts
+    const efficiencyData = [
+        { name: 'Strain', value: metrics.current.protocolEfficiency.strain, fill: '#ef4444' },
+        { name: 'Duration', value: metrics.current.protocolEfficiency.duration / 10, fill: '#3b82f6' } // Scale down duration
+    ];
+
+    // Neuro Radar Data
+    const radarData = Object.entries(metrics.current.neuroProfile).map(([axis, value]) => ({
+        subject: axis,
+        A: value,
+        fullMark: 100 // placeholder
+    }));
+
+    // Autonomic Data
+    const autoBalance = metrics.current.autonomic.balance;
+
+    const createHabitMutation = useMutation({ mutationFn: habitService.createHabit, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['habits'] }); queryClient.invalidateQueries({ queryKey: ['active-habits-today'] }); setIsCreateOpen(false); toast.success("Habit Created"); } });
+    const updateHabitMutation = useMutation({ mutationFn: ({ id, updates }: { id: string, updates: Partial<Habit> }) => habitService.updateHabit(id, updates), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['habits'] }); queryClient.invalidateQueries({ queryKey: ['active-habits-today'] }); setIsCreateOpen(false); setEditingHabit(null); toast.success("Updated"); } });
+    const deleteHabitMutation = useMutation({ mutationFn: habitService.deleteHabit, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['habits'] }); queryClient.invalidateQueries({ queryKey: ['active-habits-today'] }); setDeleteConfirmation(''); toast.success("Deleted"); } });
     const createProtocolMutation = useMutation({
         mutationFn: habitService.createProtocol,
         onSuccess: () => {
@@ -568,10 +555,10 @@ export function HabitManager() {
             setIsEditProtocolOpen(false);
             toast.success("Protocol Updated");
         }
-    }); const deleteProtocolMutation = useMutation({ mutationFn: habitService.deleteProtocol, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['protocols'] }); toast.success("Deleted"); } });
-    const importProtocolMutation = useMutation({ mutationFn: habitService.importProtocolBundle, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['habits'] }); queryClient.invalidateQueries({ queryKey: ['protocols'] }); toast.success("Protocol Imported"); } });
-    const syncLibraryMutation = useMutation({ mutationFn: habitService.syncHabitDefinitions, onSuccess: (msg: any) => { queryClient.invalidateQueries({ queryKey: ['habits'] }); toast.success(msg || "Library Synced"); } });
-    const importBundleMutation = useMutation({ mutationFn: habitService.importProtocolBundle, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['protocols'] }); queryClient.invalidateQueries({ queryKey: ['habits'] }); setIsLibraryOpen(false); toast.success("Protocol Bundle Imported"); } });
+    }); const deleteProtocolMutation = useMutation({ mutationFn: habitService.deleteProtocol, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['protocols'] }); queryClient.invalidateQueries({ queryKey: ['active-habits-today'] }); setDeleteConfirmation(''); toast.success("Protocol Deleted"); } });
+    const importProtocolMutation = useMutation({ mutationFn: habitService.importProtocolBundle, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['habits'] }); queryClient.invalidateQueries({ queryKey: ['protocols'] }); queryClient.invalidateQueries({ queryKey: ['active-habits-today'] }); toast.success("Protocol Imported"); } });
+    const syncLibraryMutation = useMutation({ mutationFn: habitService.syncHabitDefinitions, onSuccess: (msg: any) => { queryClient.invalidateQueries({ queryKey: ['habits'] }); queryClient.invalidateQueries({ queryKey: ['active-habits-today'] }); toast.success(msg || "Library Synced"); } });
+    const importBundleMutation = useMutation({ mutationFn: habitService.importProtocolBundle, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['protocols'] }); queryClient.invalidateQueries({ queryKey: ['habits'] }); queryClient.invalidateQueries({ queryKey: ['active-habits-today'] }); setIsLibraryOpen(false); toast.success("Protocol Bundle Imported"); } });
 
     const handleHabitSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -595,10 +582,8 @@ export function HabitManager() {
             vector: habitForm.vector,
             is_active: habitForm.is_active,
             time_of_day: habitForm.time_of_day,
-            frequency_days: habitForm.frequency_days,
-            protocol_id: habitForm.protocol_id,
-            start_date: habitForm.start_date ? new Date(habitForm.start_date).toISOString() : undefined,
-            end_date: habitForm.end_date ? new Date(habitForm.end_date).toISOString() : undefined
+            scheduling_config: habitForm.scheduling_config,
+            protocol_id: habitForm.protocol_id
         };
 
         if (editingHabit) updateHabitMutation.mutate({ id: editingHabit.id, updates: payload });
@@ -612,88 +597,194 @@ export function HabitManager() {
         else createProtocolMutation.mutate(protocolForm);
     };
 
-    // ... Visualization Config (Same) ...
-    const gaugeData = [{ name: 'Load', value: metrics?.systemLoad || 0, fill: (metrics?.systemLoad || 0) > 80 ? '#ef4444' : '#10b981' }];
-    const radarData = [
-        { subject: 'Recovery', A: metrics?.vectorBalance?.Sleep || 0 }, // Was Sleep
-        { subject: 'Physiology', A: metrics?.vectorBalance?.Body || 0 }, // Was Body
-        { subject: 'Cognition', A: metrics?.vectorBalance?.Mind || 0 }, // Was Mind
-        { subject: 'Drive', A: metrics?.vectorBalance?.Spirit || 0 }, // Was Spirit
-        { subject: 'Clarity', A: metrics?.vectorBalance?.Focus || 0 }, // Was Focus
-    ];
-    const netState = metrics?.netState || 0;
-
-
-
-    // Timeline Filter: Show ALL habits (Active, Paused, Standby) for management visibility.
-    const scheduledHabits = (habits || []).filter(h => {
-        return true;
-    });
-
-    const groupedHabits = {
-        morning: scheduledHabits.filter(h => h.time_of_day === 'morning'),
-        afternoon: scheduledHabits.filter(h => h.time_of_day === 'afternoon'),
-        evening: scheduledHabits.filter(h => h.time_of_day === 'evening'),
-        all_day: scheduledHabits.filter(h => h.time_of_day === 'all_day'),
-    };
-
     return (
         <div className="space-y-12 animate-in fade-in duration-500 pb-40">
-            {/* 1. CHART ENGINE (Same) */}
+            {/* 1. SCIENTIFIC STATS ENGINE */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* ... same charts ... */}
-                <div className="card-surface p-6 border-white/5 bg-black/40 backdrop-blur-xl relative flex flex-col items-center justify-center h-[240px]">
-                    <h3 className="text-[10px] uppercase tracking-widest text-zinc-500 absolute top-4 left-4">System Load</h3>
-                    <div className="w-full h-[180px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <RadialBarChart cx="50%" cy="50%" innerRadius="70%" outerRadius="100%" barSize={15} data={gaugeData} startAngle={180} endAngle={0}>
-                                <RadialBar background dataKey="value" cornerRadius={10} />
-                            </RadialBarChart>
-                        </ResponsiveContainer>
+
+                {/* CARD 1: PROTOCOL EFFICIENCY (Strain vs Duration) */}
+                {/* CARD 1: SYSTEM LOAD & TIME (Text Based) */}
+                <div className="card-surface p-6 border-white/5 bg-zinc-900/20 backdrop-blur-xl relative flex flex-col justify-between h-[260px]">
+                    <div className="flex justify-between items-start">
+                        <h3 className="text-[10px] uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+                            <Gauge className="h-3 w-3 text-red-500" />
+                            System Load
+                        </h3>
+                        {(Object.values(metrics.current.circadian).reduce((a, b) => a + b.load, 0)) > 800 && <Badge variant="outline" className="border-red-500/20 text-red-500 bg-red-500/10 text-[9px] font-mono">HIGH LOAD</Badge>}
                     </div>
-                    <div className="absolute bottom-6 text-center">
-                        <span className="text-3xl font-bold font-mono text-white">{metrics?.systemLoad}%</span>
-                        <p className="text-[9px] text-zinc-500 uppercase">Friction Coeff</p>
+
+                    <div className="flex flex-col gap-6 mt-4">
+                        {/* Time Metric */}
+                        <div>
+                            <div className="flex items-baseline gap-2">
+                                <span className={cn("text-4xl font-mono font-bold tracking-tighter",
+                                    metrics.current.protocolEfficiency.duration > 240 ? "text-red-500" :
+                                        metrics.current.protocolEfficiency.duration > 180 ? "text-orange-500" : "text-white"
+                                )}>
+                                    {formatSmartDuration(metrics.current.protocolEfficiency.duration)}
+                                </span>
+                                <span className="text-[10px] text-zinc-500 uppercase font-bold">Active Time</span>
+                            </div>
+                            <div className="h-1 w-full bg-zinc-900 rounded-full mt-2 overflow-hidden">
+                                <div
+                                    className={cn("h-full rounded-full opacity-50",
+                                        metrics.current.protocolEfficiency.duration > 240 ? "bg-red-500" :
+                                            metrics.current.protocolEfficiency.duration > 180 ? "bg-orange-500" : "bg-blue-500"
+                                    )}
+                                    style={{ width: `${Math.min(100, (metrics.current.protocolEfficiency.duration / 360) * 100)}%` }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Cognitive Load Metric */}
+                        <div className="group relative cursor-help">
+                            <div className="flex items-baseline gap-2">
+                                <span className="text-4xl font-mono font-bold tracking-tighter text-zinc-300">
+                                    {Object.values(metrics.current.circadian).reduce((a, b: any) => a + b.load, 0)}
+                                </span>
+                                <span className="text-[10px] text-zinc-500 uppercase font-bold flex items-center gap-1">
+                                    Cognitive Units <div className="h-3 w-3 rounded-full border border-zinc-700 text-[8px] flex items-center justify-center text-zinc-500">?</div>
+                                </span>
+                            </div>
+                            <p className="text-[9px] text-zinc-600 mt-1 line-clamp-1">
+                                Net Metabolic Cost
+                            </p>
+
+                            {/* Detailed Tooltip */}
+                            <div className="absolute bottom-full left-0 mb-2 w-64 p-3 bg-black border border-white/10 rounded-xl shadow-xl z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                <p className="text-[10px] text-zinc-300 font-mono mb-2 border-b border-white/5 pb-2">LOAD = (FRICTION × TIME) + INTENSITY</p>
+                                <div className="space-y-1 text-[9px] text-zinc-500">
+                                    <div className="flex justify-between"><span>Active Time</span> <span className="text-zinc-400">Total Duration</span></div>
+                                    <div className="flex justify-between"><span>Friction</span> <span className="text-zinc-400">Effort Rating (1-10)</span></div>
+                                    <div className="flex justify-between"><span>Intensity</span> <span className="text-zinc-400">|Autonomic Impact|</span></div>
+                                    <p className="pt-2 text-[8px] leading-relaxed italic opacity-70">
+                                        "Intensity" is the absolute value of the Autonomic State (Sympathetic/Parasympathetic strength). High Alert (-5) or Deep Rest (+5) adds to the metabolic cost.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                {/* Vector */}
-                <div className="card-surface p-4 border-white/5 bg-black/40 backdrop-blur-xl h-[240px]">
-                    <h3 className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Bio-Vector</h3>
-                    <div className="w-full h-[200px]">
+
+                {/* CARD 2: NEURO LANDSCAPE (5-Axis Radar) */}
+                <div className="card-surface p-4 border-white/5 bg-zinc-900/20 backdrop-blur-xl h-[260px] relative">
+                    <h3 className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2 flex items-center gap-2">
+                        <Brain className="h-3 w-3 text-emerald-500" />
+                        Neuro-Landscape
+                    </h3>
+                    <div className="w-full h-[220px]">
                         <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart cx="50%" cy="50%" outerRadius="65%" data={radarData}>
-                                <PolarGrid stroke="#333" />
+                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                                <PolarGrid stroke="#222" />
                                 <PolarAngleAxis dataKey="subject" tick={{ fill: '#666', fontSize: 9 }} />
-                                <Radar name="Balance" dataKey="A" stroke="#10b981" fill="#10b981" fillOpacity={0.2} />
+                                <Radar
+                                    name="Neuro-Profile"
+                                    dataKey="A"
+                                    stroke="#10b981"
+                                    fill="#10b981"
+                                    fillOpacity={0.2}
+                                />
+                                <Tooltip
+                                    contentStyle={{ backgroundColor: '#09090b', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', fontSize: '10px', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.5)' }}
+                                    itemStyle={{ color: '#10b981', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', fontFamily: 'monospace', marginBottom: '4px' }}
+                                    formatter={(value: any, name: any, props: any) => {
+                                        const axis = props.payload.subject;
+
+                                        // Dynamic Driver Lookup using Shared Map
+                                        // 1. Get chemicals that map to this axis
+                                        const relevantDrivers = Object.entries(metrics.current.chemicalDistribution)
+                                            .filter(([chem, score]) => {
+                                                const mappedAxis = {
+                                                    'dopamine': 'Drive', 'testosterone': 'Drive', 'dynorphin': 'Drive', 'tyrosine': 'Drive', 'endorphin': 'Drive',
+                                                    'acetylcholine': 'Focus', 'norepinephrine': 'Focus', 'adrenaline': 'Focus', 'orexin': 'Focus', 'glutamate': 'Focus', 'histamine': 'Focus',
+                                                    'adenosine': 'Rest', 'melatonin': 'Rest', 'growth hormone': 'Rest', 'gaba': 'Rest',
+                                                    'serotonin': 'Serenity', 'oxytocin': 'Serenity', 'anandamide': 'Serenity',
+                                                    'insulin': 'Metabolic', 'nitric oxide': 'Metabolic', 'cortisol': 'Metabolic', 'nad+': 'Metabolic', 'ketones': 'Metabolic'
+                                                }[chem.toLowerCase()] || 'Metabolic';
+
+                                                return mappedAxis === axis && score > 0;
+                                            })
+                                            .sort((a, b) => b[1] - a[1]) // Sort by score
+                                            .map(([chem, score]) => `${chem.slice(0, 3).toUpperCase()} ${Math.round(score * 10)}%`);
+
+                                        const driverList = relevantDrivers.length > 0 ? relevantDrivers.join(' + ') : 'No Drivers';
+
+                                        // Custom React Element for Tooltip (Recharts supports this if returning array)
+                                        // But formatter expects [value, name]. We will hijack name to show details.
+                                        return [
+                                            value,
+                                            <div key="custom" className="flex flex-col gap-1">
+                                                <span>{axis}</span>
+                                                <span className="text-[9px] font-normal text-zinc-400 normal-case tracking-normal border-t border-white/10 pt-1 mt-1">
+                                                    {driverList}
+                                                </span>
+                                            </div>
+                                        ];
+                                    }}
+                                />
                             </RadarChart>
                         </ResponsiveContainer>
                     </div>
+                    {/* Top Driver Badge */}
+                    <div className="absolute top-4 right-4">
+                        <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10">
+                            {Object.entries(metrics.current.neuroProfile).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Balanced'}
+                        </Badge>
+                    </div>
                 </div>
-                {/* Net State */}
-                <div className="card-surface p-6 border-white/5 bg-black/40 backdrop-blur-xl flex flex-col justify-center h-[240px]">
-                    <h3 className="text-[10px] uppercase tracking-widest text-zinc-500 mb-8">Autonomic State</h3>
-                    <div className="relative h-2 bg-white/10 rounded-full mb-4">
-                        <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-white/30" />
-                        <div className={cn("absolute top-0 bottom-0 rounded-full transition-all", netState > 0 ? "bg-orange-500 left-1/2" : "bg-blue-500 right-1/2")} style={{ width: `${Math.min(50, Math.abs(netState) * 5)}%`, [netState > 0 ? 'left' : 'right']: '50%' }} />
+
+                {/* CARD 3: AUTONOMIC BIAS (Tug of War) */}
+                <div className="card-surface p-6 border-white/5 bg-zinc-900/20 backdrop-blur-xl flex flex-col justify-between h-[260px]">
+                    <h3 className="text-[10px] uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+                        <Activity className="h-3 w-3 text-orange-400" />
+                        Autonomic Bias
+                    </h3>
+
+                    <div className="flex-1 flex flex-col justify-center">
+                        {/* Visual Bar */}
+                        <div className="relative h-4 bg-zinc-900/50 rounded-full mb-6 border border-white/5 overflow-hidden">
+                            <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-white/20 z-10" />
+
+                            {/* Bar Content */}
+                            <motion.div
+                                className={cn("absolute top-0 bottom-0 transition-all duration-1000 ease-out opacity-80",
+                                    autoBalance > 0 ? "bg-gradient-to-r from-blue-500/50 to-blue-500" : "bg-gradient-to-l from-orange-500/50 to-orange-500"
+                                )}
+                                style={{
+                                    width: `${Math.min(50, Math.abs(autoBalance) * 2)}%`,
+                                    [autoBalance > 0 ? 'left' : 'right']: '50%'
+                                }}
+                            />
+                        </div>
+
+                        <div className="flex justify-between text-[10px] uppercase font-bold text-zinc-500 px-2">
+                            <span className="text-orange-400 flex flex-col items-start gap-1">
+                                <span>Sympathetic</span>
+                                <span className="text-[8px] opacity-50 font-mono">Fight & Flight</span>
+                            </span>
+                            <span className="text-blue-400 flex flex-col items-end gap-1">
+                                <span>Parasympathetic</span>
+                                <span className="text-[8px] opacity-50 font-mono">Rest & Digest</span>
+                            </span>
+                        </div>
                     </div>
-                    <div className="flex justify-between text-[10px] uppercase font-bold text-zinc-500">
-                        <span className="text-blue-400">Parasympathetic</span>
-                        <span className="text-orange-400">Sympathetic</span>
-                    </div>
-                    <div className="text-center mt-4">
-                        <span className={cn("text-2xl font-mono font-bold", netState > 0 ? "text-orange-400" : "text-blue-400")}>
-                            {netState > 0 ? '+' : ''}{netState}
+                    {/* Removed Border Top */}
+                    <div className="pt-2 w-full text-center">
+                        <span className={cn("text-3xl font-mono font-bold block mb-1", autoBalance > 0 ? "text-blue-400" : "text-orange-400")}>
+                            {autoBalance > 0 ? '+' : ''}{autoBalance}
                         </span>
-                        <p className="text-[9px] text-zinc-600 uppercase">Net Bias</p>
-                    </div>
-                    <div className="mt-auto pt-4 border-t border-white/5 w-full text-center">
                         <p className="text-[9px] text-zinc-400 font-mono">
-                            {netState > 5 ? "System Oversaturated. Add +Action." :
-                                netState < -5 ? "System Depleted. Add +Rest." :
-                                    "System Equilibrated."}
+                            {autoBalance > 10 ? "System Restorative. Good for Recovery." :
+                                autoBalance < -10 ? "System Adrenergic. High Alertness." :
+                                    "Homeostatic Balance."}
                         </p>
                     </div>
                 </div>
+            </div>
+
+            {/* 2. CIRCADIAN ARCHITECTURE (Phase Grid) */}
+            <div className="w-full">
+                <CircadianPhaseGrid phases={metrics.current.circadian} />
             </div>
 
             {/* 2. PROTOCOLS */}
@@ -794,147 +885,146 @@ export function HabitManager() {
                 </div>
 
                 <div className="relative pl-8 border-l border-dashed border-white/10 ml-4 space-y-12">
-                    {['morning', 'afternoon', 'evening', 'all_day'].map((time, idx) => {
-                        // @ts-ignore
-                        const slotHabits = groupedHabits[time];
-                        // If no habits, we still show the slot if desired, but user likely wants compact. 
-                        // Let's show it if it has habits OR if it's the first one to anchor the timeline.
-                        if (!slotHabits.length) return null;
+                    {(() => {
+                        const groupedHabits = {
+                            morning: (habits || []).filter(h => h.time_of_day === 'morning'),
+                            afternoon: (habits || []).filter(h => h.time_of_day === 'afternoon'),
+                            evening: (habits || []).filter(h => h.time_of_day === 'evening'),
+                            all_day: (habits || []).filter(h => !['morning', 'afternoon', 'evening'].includes(h.time_of_day || ''))
+                        };
 
-                        const title = time === 'all_day' ? 'Anytime' : time;
-                        const timeIcon = time === 'morning' ? <Sun className="h-4 w-4" /> : time === 'afternoon' ? <Sun className="h-4 w-4 opacity-50" /> : time === 'evening' ? <Moon className="h-4 w-4" /> : <Clock className="h-4 w-4" />;
+                        return ['morning', 'afternoon', 'evening', 'all_day'].map((time, idx) => {
+                            // @ts-ignore
+                            const slotHabits = groupedHabits[time];
+                            // If no habits, we still show the slot if desired, but user likely wants compact. 
+                            // Let's show it if it has habits OR if it's the first one to anchor the timeline.
+                            if (!slotHabits.length) return null;
 
-                        return (
-                            <div key={time} className="relative">
-                                {/* Timeline Node */}
-                                <div className="absolute -left-[41px] top-0 h-5 w-5 rounded-full bg-black border border-white/20 flex items-center justify-center z-10">
-                                    <div className="h-2 w-2 rounded-full bg-zinc-600" />
-                                </div>
+                            const title = time === 'all_day' ? 'Anytime' : time;
+                            const timeIcon = time === 'morning' ? <Sun className="h-4 w-4" /> : time === 'afternoon' ? <Sun className="h-4 w-4 opacity-50" /> : time === 'evening' ? <Moon className="h-4 w-4" /> : <Clock className="h-4 w-4" />;
 
-                                <h4 className="flex items-center gap-2 text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">
-                                    {timeIcon} {title}
-                                </h4>
+                            return (
+                                <div key={time} className="relative">
+                                    {/* Timeline Node */}
+                                    <div className="absolute -left-[41px] top-0 h-5 w-5 rounded-full bg-black border border-white/20 flex items-center justify-center z-10">
+                                        <div className="h-2 w-2 rounded-full bg-zinc-600" />
+                                    </div>
 
-                                <div className="grid grid-cols-1 gap-3">
-                                    {slotHabits.map((h: Habit) => {
-                                        const protocol = h.protocol_id ? protocols?.find(p => p.id === h.protocol_id) : undefined;
-                                        const protocolName = protocol?.name;
+                                    <h4 className="flex items-center gap-2 text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">
+                                        {timeIcon} {title}
+                                    </h4>
 
-                                        // 1. Determine Effective Status
-                                        const isHabitPaused = !h.is_active;
-                                        const isProtocolPaused = protocol && !protocol.is_active;
-                                        const effectivelyPaused = isHabitPaused || isProtocolPaused;
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {slotHabits.map((h: Habit) => {
+                                            const protocol = h.protocol_id ? protocols?.find(p => p.id === h.protocol_id) : undefined;
+                                            const protocolName = protocol?.name;
 
-                                        // 2. Determine "Standby" (Active but not scheduled for today)
-                                        let isStandby = false;
-                                        if (protocol && protocol.scheduling_config) {
-                                            if (!isScheduledForToday(protocol.scheduling_config)) isStandby = true;
-                                        }
-                                        // Check Habit Schedule (Legacy/Simple Frequency - Prioritize for Standalone Habits matches UI)
-                                        else if (h.frequency_days && h.frequency_days.length > 0) {
-                                            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                                            const todayName = days[new Date().getDay()];
-                                            if (!h.frequency_days.includes(todayName)) isStandby = true;
-                                        }
-                                        // Check Habit Schedule (V11 Config - Fallback)
-                                        else if (h.scheduling_config) {
-                                            if (!isScheduledForToday(h.scheduling_config, h.start_date)) isStandby = true;
-                                        }
+                                            // 1. Determine Effective Status
+                                            const isHabitPaused = !h.is_active;
+                                            const isProtocolPaused = protocol && !protocol.is_active;
+                                            const effectivelyPaused = isHabitPaused || isProtocolPaused;
 
-                                        // 3. Status Logic
-                                        const effectivelyStandby = !effectivelyPaused && isStandby;
+                                            // 2. Determine "Standby" (Active but not scheduled for today)
+                                            const config = protocol ? protocol.scheduling_config : h.scheduling_config;
+                                            const startDate = protocol ? undefined : h.start_date;
+                                            const isStandby = config ? !isScheduledForToday(config, startDate) : false;
 
-                                        return (
-                                            <div key={h.id} className={cn("group relative border rounded-xl p-4 transition-all flex flex-col gap-3",
-                                                effectivelyPaused ? "bg-white/[0.04] border-white/10 opacity-75" : // Improved Visibility
-                                                    effectivelyStandby ? "bg-amber-500/5 border-amber-500/20" : // Standby Style
-                                                        "bg-white/5 border-white/5 hover:border-emerald-500/30 hover:bg-white/[0.07]"
-                                            )}>
+                                            // 3. Status Logic
+                                            const effectivelyStandby = !effectivelyPaused && isStandby;
 
-                                                <div className="flex justify-between items-start">
-                                                    <div className="flex items-start gap-4 flex-1">
-                                                        {/* Status Toggle Dot */}
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); updateHabitMutation.mutate({ id: h.id, updates: { is_active: !h.is_active } }); }}
-                                                            className={cn("mt-1.5 h-3 w-3 rounded-full border transition-all hover:scale-110 flex-shrink-0",
-                                                                !effectivelyPaused
-                                                                    ? (effectivelyStandby ? "bg-transparent border-amber-500 text-amber-500" : "bg-emerald-500 border-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]")
-                                                                    : "bg-transparent border-zinc-500 hover:border-zinc-400")}
-                                                            title={effectivelyPaused ? "Activate" : effectivelyStandby ? "Standby (Scheduled)" : "Pause"}
-                                                        >
-                                                            {effectivelyStandby && <Clock className="h-1.5 w-1.5 mx-auto mt-[1px]" />}
-                                                        </button>
+                                            return (
+                                                <div key={h.id} className={cn("group relative border rounded-xl p-4 transition-all flex flex-col gap-3",
+                                                    effectivelyPaused ? "bg-white/[0.04] border-white/10 opacity-75" : // Improved Visibility
+                                                        effectivelyStandby ? "bg-amber-500/5 border-amber-500/20" : // Standby Style
+                                                            "bg-white/5 border-white/5 hover:border-emerald-500/30 hover:bg-white/[0.07]"
+                                                )}>
 
-                                                        <div className="w-full">
-                                                            <div className="flex items-center justify-between w-full">
-                                                                <div className="flex items-center gap-2">
-                                                                    <h3 onClick={() => { setEditingHabit(h); setIsCreateOpen(true); }}
-                                                                        className={cn("text-sm font-bold cursor-pointer hover:text-emerald-500 transition-colors",
-                                                                            effectivelyPaused ? "text-zinc-400 line-through decoration-zinc-600" :
-                                                                                effectivelyStandby ? "text-amber-500/80" :
-                                                                                    "text-white"
-                                                                        )}>
-                                                                        {h.name}
-                                                                    </h3>
-                                                                    {effectivelyStandby && <span className="text-[9px] uppercase font-bold text-amber-500/60 border border-amber-500/20 px-1 rounded">Standby</span>}
-                                                                    {protocolName && (
-                                                                        <Badge variant="secondary" className={cn("text-[9px] h-4 px-1.5 border-none",
-                                                                            effectivelyStandby ? "bg-amber-500/10 text-amber-500/80" : "bg-emerald-500/10 text-emerald-500/80"
-                                                                        )}>
-                                                                            {protocolName}
-                                                                        </Badge>
-                                                                    )}
+                                                    <div className="flex justify-between items-start">
+                                                        <div className="flex items-start gap-4 flex-1">
+                                                            {/* Status Toggle Dot */}
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); updateHabitMutation.mutate({ id: h.id, updates: { is_active: !h.is_active } }); }}
+                                                                className={cn("mt-1.5 h-3 w-3 rounded-full border transition-all hover:scale-110 flex-shrink-0",
+                                                                    !effectivelyPaused
+                                                                        ? (effectivelyStandby ? "bg-transparent border-amber-500 text-amber-500" : "bg-emerald-500 border-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]")
+                                                                        : "bg-transparent border-zinc-500 hover:border-zinc-400")}
+                                                                title={effectivelyPaused ? "Activate" : effectivelyStandby ? "Standby (Scheduled)" : "Pause"}
+                                                            >
+                                                                {effectivelyStandby && <Clock className="h-1.5 w-1.5 mx-auto mt-[1px]" />}
+                                                            </button>
+
+                                                            <div className="w-full">
+                                                                <div className="flex items-center justify-between w-full">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <h3 onClick={() => { setEditingHabit(h); setIsCreateOpen(true); }}
+                                                                            className={cn("text-sm font-bold cursor-pointer hover:text-emerald-500 transition-colors",
+                                                                                effectivelyPaused ? "text-zinc-400 line-through decoration-zinc-600" :
+                                                                                    effectivelyStandby ? "text-amber-500/80" :
+                                                                                        "text-white"
+                                                                            )}>
+                                                                            {h.name}
+                                                                        </h3>
+                                                                        {effectivelyStandby && <span className="text-[9px] uppercase font-bold text-amber-500/60 border border-amber-500/20 px-1 rounded">Standby</span>}
+                                                                        {protocolName && (
+                                                                            <Badge variant="secondary" className={cn("text-[9px] h-4 px-1.5 border-none",
+                                                                                effectivelyStandby ? "bg-amber-500/10 text-amber-500/80" : "bg-emerald-500/10 text-emerald-500/80"
+                                                                            )}>
+                                                                                {protocolName}
+                                                                            </Badge>
+                                                                        )}
+                                                                    </div>
+
+                                                                    <Badge className={cn("text-[9px] font-mono border bg-transparent ml-auto", (h.state || 0) > 0 ? "text-blue-400 border-blue-900/30" : "text-orange-400 border-orange-900/30")}>
+                                                                        {(h.state || 0) > 0 ? `REST +${h.state}` : `ACTIB -${Math.abs(h.state || 0)}`}
+                                                                    </Badge>
                                                                 </div>
 
-                                                                <Badge className={cn("text-[9px] font-mono border bg-transparent ml-auto", (h.state || 0) > 0 ? "text-blue-400 border-blue-900/30" : "text-orange-400 border-orange-900/30")}>
-                                                                    {(h.state || 0) > 0 ? `REST +${h.state}` : `ACTIB -${Math.abs(h.state || 0)}`}
-                                                                </Badge>
-                                                            </div>
+                                                                {/* Redesigned Info Specs */}
+                                                                <div className="flex flex-wrap items-center gap-2 mt-3">
+                                                                    {/* Time */}
+                                                                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-black/20 border border-white/5 text-[10px] text-zinc-400">
+                                                                        <Timer className="h-3 w-3 text-zinc-500" />
+                                                                        <span className="font-mono">{h.duration}m</span>
+                                                                    </div>
 
-                                                            {/* Redesigned Info Specs */}
-                                                            <div className="flex flex-wrap items-center gap-2 mt-3">
-                                                                {/* Time */}
-                                                                <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-black/20 border border-white/5 text-[10px] text-zinc-400">
-                                                                    <Timer className="h-3 w-3 text-zinc-500" />
-                                                                    <span className="font-mono">{h.duration}m</span>
+                                                                    {/* Driver */}
+                                                                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-black/20 border border-white/5 text-[10px] text-zinc-400">
+                                                                        <Zap className="h-3 w-3 text-zinc-500" />
+                                                                        <span className="uppercase tracking-wide">{h.primary_driver}</span>
+                                                                        {h.secondary_driver && <span className="text-zinc-600 text-[9px] font-mono">+ {h.secondary_driver.slice(0, 3).toUpperCase()}</span>}
+                                                                    </div>
+
+                                                                    {/* Friction */}
+                                                                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-black/20 border border-white/5 text-[10px] text-zinc-400">
+                                                                        <Activity className="h-3 w-3 text-zinc-500" />
+                                                                        <span>Load: <span className="text-zinc-300">{h.friction}</span></span>
+                                                                    </div>
+
+                                                                    {/* Category (if exists) */}
+
                                                                 </div>
-
-                                                                {/* Driver */}
-                                                                <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-black/20 border border-white/5 text-[10px] text-zinc-400">
-                                                                    <Zap className="h-3 w-3 text-zinc-500" />
-                                                                    <span className="uppercase tracking-wide">{h.primary_driver}</span>
-                                                                    {h.secondary_driver && <span className="text-zinc-600 text-[9px] font-mono">+ {h.secondary_driver.slice(0, 3).toUpperCase()}</span>}
-                                                                </div>
-
-                                                                {/* Friction */}
-                                                                <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-black/20 border border-white/5 text-[10px] text-zinc-400">
-                                                                    <Activity className="h-3 w-3 text-zinc-500" />
-                                                                    <span>Load: <span className="text-zinc-300">{h.friction}</span></span>
-                                                                </div>
-
-                                                                {/* Category (if exists) */}
-
                                                             </div>
                                                         </div>
-                                                    </div>
 
-                                                    {/* Quick Actions (Always Visible) */}
-                                                    <div className="flex flex-col gap-1 ml-4 opacity-100 transition-opacity">
-                                                        <Button size="icon" variant="ghost" className="h-7 w-7 text-zinc-500 hover:text-white hover:bg-white/10" onClick={() => { setEditingHabit(h); setIsCreateOpen(true); }}>
-                                                            <Settings className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                        <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10" onClick={() => updateHabitMutation.mutate({ id: h.id, updates: { is_active: !h.is_active } })}>
-                                                            {h.is_active ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                                                        </Button>
+                                                        {/* Quick Actions (Always Visible) */}
+                                                        <div className="flex flex-col gap-1 ml-4 opacity-100 transition-opacity">
+                                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-zinc-500 hover:text-white hover:bg-white/10" onClick={() => { setEditingHabit(h); setIsCreateOpen(true); }}>
+                                                                <Settings className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10" onClick={() => updateHabitMutation.mutate({ id: h.id, updates: { is_active: !h.is_active } })}>
+                                                                {h.is_active ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                                                            </Button>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    })}
+                            );
+                        })
+                    })()}
+
                 </div>
             </div>
             {/* HABIT MODAL (Sleek Scientific Redesign) */}
@@ -1012,18 +1102,56 @@ export function HabitManager() {
                                     <Input type="range" min="1" max="180" step="5" value={habitForm.duration || 15} onChange={e => setHabitForm({ ...habitForm, duration: parseInt(e.target.value) })} className="h-1 bg-zinc-800 accent-white w-full" />
                                 </div>
 
-                                {/* Days */}
-                                <div className="flex justify-between gap-1 pt-2">
-                                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
-                                        const isSelected = habitForm.frequency_days?.includes(day);
-                                        return (
-                                            <div key={day} onClick={() => { const current = habitForm.frequency_days || []; setHabitForm({ ...habitForm, frequency_days: isSelected ? current.filter(d => d !== day) : [...current, day] }); }}
-                                                className={cn("w-8 h-8 rounded-full flex items-center justify-center text-[9px] font-mono cursor-pointer transition-all border", isSelected ? "bg-emerald-500 text-black border-emerald-500 font-bold" : "bg-transparent text-zinc-600 border-zinc-800 hover:border-zinc-600")}
-                                            >
-                                                {day.charAt(0)}
-                                            </div>
-                                        )
-                                    })}
+                                {/* Frequency (Restored: Simple Day Selector) */}
+                                <div className="space-y-3 pt-2">
+                                    <Label className="text-[9px] uppercase text-zinc-500 tracking-widest">Schedule</Label>
+
+                                    <div className="flex justify-between gap-1">
+                                        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
+                                            // Determine active state: Daily = All Active, Weekly = Check Array
+                                            const isDaily = habitForm.scheduling_config?.type === 'daily' || !habitForm.scheduling_config;
+                                            const weeklyDays = habitForm.scheduling_config?.days || [];
+                                            const isActive = isDaily || weeklyDays.includes(day);
+
+                                            return (
+                                                <button
+                                                    key={day}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const currentDays = isDaily
+                                                            ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+                                                            : (habitForm.scheduling_config?.days || []);
+
+                                                        let newDays;
+                                                        if (isActive) {
+                                                            // Deselecting: Switch to Weekly
+                                                            newDays = currentDays.filter(d => d !== day);
+                                                        } else {
+                                                            // Selecting
+                                                            newDays = [...currentDays, day];
+                                                        }
+
+                                                        // Smart Type Switching
+                                                        const isNowDaily = newDays.length === 7;
+
+                                                        setHabitForm(prev => ({
+                                                            ...prev,
+                                                            scheduling_config: {
+                                                                ...prev.scheduling_config,
+                                                                type: isNowDaily ? 'daily' : 'weekly',
+                                                                days: isNowDaily ? [] : newDays
+                                                            }
+                                                        }));
+                                                    }}
+                                                    className={cn("w-8 h-8 rounded-full text-[10px] flex items-center justify-center transition-all border",
+                                                        isActive ? "bg-emerald-500 text-white border-emerald-500 font-bold" : "bg-transparent text-zinc-600 border-zinc-800 hover:border-zinc-600"
+                                                    )}
+                                                >
+                                                    {day.charAt(0)}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1079,7 +1207,7 @@ export function HabitManager() {
 
                                     {/* Custom Thumb/Indicator (Visual only, positioned by value) */}
                                     <div
-                                        className="absolute h-8 w-8 bg-black border-2 rounded-full flex items-center justify-center text-[10px] font-bold transition-all shadow-xl pointer-events-none z-0"
+                                        className="absolute h-8 w-8 bg-background border-2 rounded-full flex items-center justify-center text-[10px] font-bold transition-all shadow-xl pointer-events-none z-0"
                                         style={{
                                             left: `calc(${((habitForm.state || 0) + 5) * 10}% - 16px)`, // Map -5..5 to 0..100%
                                             borderColor: (habitForm.state || 0) > 0 ? '#60a5fa' : (habitForm.state || 0) < 0 ? '#fb923c' : '#71717a',
@@ -1132,8 +1260,8 @@ export function HabitManager() {
 
             {/* PROTOCOL MODAL (Parity Logic) */}
             <Dialog open={isEditProtocolOpen} onOpenChange={setIsEditProtocolOpen}>
-                <DialogContent className="sm:max-w-4xl bg-black/95 border-zinc-800 backdrop-blur-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
-                    <DialogHeader className="p-6 border-b border-white/5 sticky top-0 bg-black/95 z-10">
+                <DialogContent className="sm:max-w-4xl bg-background/95 border-zinc-800 backdrop-blur-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+                    <DialogHeader className="p-6 border-b border-white/5 sticky top-0 bg-background/95 z-10">
                         <DialogTitle className="font-mono uppercase tracking-widest text-emerald-500 flex justify-between items-center text-sm">
                             <span>{editingProtocol ? 'Protocol Design' : 'New Protocol'}</span>
                             <div className="flex items-center gap-3">
@@ -1537,9 +1665,10 @@ export function HabitManager() {
                                             const hStateVal = firstHabit?.state || 0;
 
                                             // Recommendation Logic: 
-                                            // If Net State is low (Too Calm/Depressed), recommend Action (Positive State).
-                                            // If Net State is high (Manic/Stressed), recommend Rest (Negative State).
-                                            const needed = metrics.netState < -5 ? 1 : metrics.netState > 5 ? -1 : 0;
+                                            // If Autonomic Balance is negative (Sympathetic Bias), recommend Rest/Positive State.
+                                            // If Balance is positive (Parasympathetic), recommend Action/Negative State.
+                                            const balance = metrics.current.autonomic.balance;
+                                            const needed = balance < -5 ? 1 : balance > 5 ? -1 : 0;
 
                                             if (needed === 1 && hStateVal > 0) return 10;
                                             if (needed === -1 && hStateVal < 0) return 10;
@@ -1549,7 +1678,8 @@ export function HabitManager() {
                                     }).map(bundle => {
                                         const firstHabit = HABIT_Biblio.find(h => h.name === bundle.habits[0]);
                                         const hStateVal = firstHabit?.state || 0;
-                                        const isRecommended = (metrics.netState < -5 && hStateVal > 0) || (metrics.netState > 5 && hStateVal < 0);
+                                        const balance = metrics.current.autonomic.balance;
+                                        const isRecommended = (balance < -5 && hStateVal > 0) || (balance > 5 && hStateVal < 0);
 
                                         return (
                                             <div key={bundle.id}
@@ -1596,11 +1726,11 @@ export function HabitManager() {
                                     <div className="aspect-square w-full relative">
                                         <ResponsiveContainer width="100%" height="100%">
                                             <RadarChart cx="50%" cy="50%" outerRadius="70%" data={[
-                                                { subject: 'Recovery', A: metrics.vectorBalance.Sleep, B: metrics.simulated?.vectorBalance.Sleep || 0, fullMark: 10 },
-                                                { subject: 'Physiology', A: metrics.vectorBalance.Body, B: metrics.simulated?.vectorBalance.Body || 0, fullMark: 10 },
-                                                { subject: 'Cognition', A: metrics.vectorBalance.Mind, B: metrics.simulated?.vectorBalance.Mind || 0, fullMark: 10 },
-                                                { subject: 'Drive', A: metrics.vectorBalance.Spirit, B: metrics.simulated?.vectorBalance.Spirit || 0, fullMark: 10 },
-                                                { subject: 'Clarity', A: metrics.vectorBalance.Focus, B: metrics.simulated?.vectorBalance.Focus || 0, fullMark: 10 },
+                                                { subject: 'Rest', A: metrics.current.neuroProfile.Rest, B: metrics.simulated?.neuroProfile.Rest || 0, fullMark: 100 },
+                                                { subject: 'Metabolic', A: metrics.current.neuroProfile.Metabolic, B: metrics.simulated?.neuroProfile.Metabolic || 0, fullMark: 100 },
+                                                { subject: 'Focus', A: metrics.current.neuroProfile.Focus, B: metrics.simulated?.neuroProfile.Focus || 0, fullMark: 100 },
+                                                { subject: 'Drive', A: metrics.current.neuroProfile.Drive, B: metrics.simulated?.neuroProfile.Drive || 0, fullMark: 100 },
+                                                { subject: 'Serenity', A: metrics.current.neuroProfile.Serenity, B: metrics.simulated?.neuroProfile.Serenity || 0, fullMark: 100 },
                                             ]}>
                                                 <PolarGrid stroke="#333" />
                                                 <PolarAngleAxis dataKey="subject" tick={{ fill: '#666', fontSize: 10, fontWeight: 600 }} />
@@ -1622,19 +1752,19 @@ export function HabitManager() {
                                     <div className="grid grid-cols-2 gap-3">
                                         {/* NET STATE */}
                                         <div className="p-3 bg-black/40 rounded-lg border border-white/5">
-                                            <div className="text-[9px] uppercase text-zinc-500 mb-1">Net State Shift</div>
+                                            <div className="text-[9px] uppercase text-zinc-500 mb-1">State Balance</div>
                                             <div className="flex items-baseline gap-2">
-                                                <div className={cn("text-lg font-mono font-bold", metrics.netState > 0 ? "text-blue-500" : "text-orange-500")}>
-                                                    {metrics.netState > 0 ? '+' : ''}{metrics.netState}
+                                                <div className={cn("text-lg font-mono font-bold", metrics.current.autonomic.balance > 0 ? "text-blue-500" : "text-orange-500")}>
+                                                    {metrics.current.autonomic.balance > 0 ? '+' : ''}{metrics.current.autonomic.balance}
                                                 </div>
                                                 {selectedBundleIds.length > 0 && metrics.simulated && (
                                                     <>
                                                         <ArrowRight className="h-3 w-3 text-zinc-600" />
-                                                        <div className={cn("text-lg font-mono font-bold", metrics.simulated.netState > 0 ? "text-blue-400" : "text-orange-400")}>
-                                                            {metrics.simulated.netState > 0 ? '+' : ''}{metrics.simulated.netState}
+                                                        <div className={cn("text-lg font-mono font-bold", metrics.simulated.autonomic.balance > 0 ? "text-blue-400" : "text-orange-400")}>
+                                                            {metrics.simulated.autonomic.balance > 0 ? '+' : ''}{metrics.simulated.autonomic.balance}
                                                         </div>
-                                                        <div className={cn("text-[10px] font-mono", (metrics.simulated.netState - metrics.netState) > 0 ? "text-blue-500" : "text-orange-500")}>
-                                                            ({(metrics.simulated.netState - metrics.netState) > 0 ? '+' : ''}{metrics.simulated.netState - metrics.netState})
+                                                        <div className={cn("text-[10px] font-mono", (metrics.simulated.autonomic.balance - metrics.current.autonomic.balance) > 0 ? "text-blue-500" : "text-orange-500")}>
+                                                            ({(metrics.simulated.autonomic.balance - metrics.current.autonomic.balance) > 0 ? '+' : ''}{metrics.simulated.autonomic.balance - metrics.current.autonomic.balance})
                                                         </div>
                                                     </>
                                                 )}
@@ -1643,17 +1773,17 @@ export function HabitManager() {
 
                                         {/* FRICTION */}
                                         <div className="p-3 bg-black/40 rounded-lg border border-white/5">
-                                            <div className="text-[9px] uppercase text-zinc-500 mb-1">System Load</div>
+                                            <div className="text-[9px] uppercase text-zinc-500 mb-1">Total Strain</div>
                                             <div className="flex items-baseline gap-2">
-                                                <div className="text-lg font-mono font-bold text-white">{metrics.totalFriction}</div>
+                                                <div className="text-lg font-mono font-bold text-white">{metrics.current.protocolEfficiency.strain}</div>
                                                 {selectedBundleIds.length > 0 && metrics.simulated && (
                                                     <>
                                                         <ArrowRight className="h-3 w-3 text-zinc-600" />
                                                         <div className="text-lg font-mono font-bold text-white">
-                                                            {metrics.simulated.totalFriction}
+                                                            {metrics.simulated.protocolEfficiency.strain}
                                                         </div>
-                                                        <div className={cn("text-[10px] font-mono", (metrics.simulated.totalFriction - metrics.totalFriction) > 0 ? "text-red-400" : "text-emerald-400")}>
-                                                            ({(metrics.simulated.totalFriction - metrics.totalFriction) > 0 ? '+' : ''}{metrics.simulated.totalFriction - metrics.totalFriction})
+                                                        <div className={cn("text-[10px] font-mono", (metrics.simulated.protocolEfficiency.strain - metrics.current.protocolEfficiency.strain) > 0 ? "text-red-400" : "text-emerald-400")}>
+                                                            ({(metrics.simulated.protocolEfficiency.strain - metrics.current.protocolEfficiency.strain) > 0 ? '+' : ''}{metrics.simulated.protocolEfficiency.strain - metrics.current.protocolEfficiency.strain})
                                                         </div>
                                                     </>
                                                 )}
@@ -1662,22 +1792,22 @@ export function HabitManager() {
                                     </div>
 
                                     {/* AUTONOMIC BALANCE */}
-                                    {metrics.autonomic && (
+                                    {metrics.current.autonomic && (
                                         <div className="border-t border-white/5 pt-6">
                                             <h4 className="text-[10px] uppercase tracking-widest text-zinc-500 mb-4 flex justify-between">
                                                 <span>Autonomic Balance</span>
                                                 {selectedBundleIds.length > 0 && metrics.simulated?.autonomic && (
                                                     <span className="text-xs font-mono text-zinc-400">
-                                                        Diff: <span className="text-white">{Math.abs((metrics.simulated.autonomic.sympathetic / Math.max(1, metrics.simulated.autonomic.sympathetic + metrics.simulated.autonomic.parasympathetic) * 100) - (metrics.autonomic.sympathetic / Math.max(1, metrics.autonomic.sympathetic + metrics.autonomic.parasympathetic) * 100)).toFixed(0)}%</span>
+                                                        Diff: <span className="text-white">{Math.abs((metrics.simulated.autonomic.sympathetic / Math.max(1, metrics.simulated.autonomic.sympathetic + metrics.simulated.autonomic.parasympathetic) * 100) - (metrics.current.autonomic.sympathetic / Math.max(1, metrics.current.autonomic.sympathetic + metrics.current.autonomic.parasympathetic) * 100)).toFixed(0)}%</span>
                                                     </span>
                                                 )}
                                             </h4>
                                             <div className="space-y-4">
                                                 {[
-                                                    { label: 'Current', data: metrics.autonomic },
+                                                    { label: 'Current', data: metrics.current.autonomic },
                                                     ...(selectedBundleIds.length > 0 && metrics.simulated?.autonomic ? [{ label: 'Simulated', data: metrics.simulated.autonomic }] : [])
                                                 ].map((set, idx) => {
-                                                    const total = set.data.sympathetic + set.data.parasympathetic + set.data.neutral || 1;
+                                                    const total = set.data.sympathetic + set.data.parasympathetic || 1; // Removed neutral
                                                     const sym = (set.data.sympathetic / total) * 100;
                                                     const para = (set.data.parasympathetic / total) * 100;
 
@@ -1704,39 +1834,53 @@ export function HabitManager() {
                                     )}
 
                                     {/* NEUROCHEMICAL PROFILE */}
-                                    {metrics.neuroProfile && (
+                                    {metrics.current.chemicalDistribution && (
                                         <div className="border-t border-white/5 pt-6">
                                             <h4 className="text-[10px] uppercase tracking-widest text-zinc-500 mb-4 flex justify-between">
-                                                <span>Neuro-Chemical Profile</span>
+                                                <span>Top Neuro-Chemicals</span>
                                                 {selectedBundleIds.length > 0 && <span className="text-[9px] text-emerald-500">Optimized</span>}
                                             </h4>
                                             <div className="flex flex-col gap-2">
                                                 {/* Show Top 5 Drivers with Delta */}
-                                                {metrics.neuroProfile.slice(0, 5).map((n: any) => {
-                                                    const simN = metrics.simulated?.neuroProfile?.find((sn: any) => sn.name === n.name);
-                                                    const diff = simN ? simN.percent - n.percent : 0;
+                                                {Object.entries(metrics.current.chemicalDistribution)
+                                                    .sort((a, b) => b[1] - a[1])
+                                                    .slice(0, 5)
+                                                    .map(([name, count]) => {
+                                                        const totalCurrent = Object.values(metrics.current.chemicalDistribution).reduce((a, b) => a + b, 0) || 1;
+                                                        const currentPercent = (count / totalCurrent) * 100;
 
-                                                    return (
-                                                        <div key={n.name} className="flex items-center gap-3 text-[9px]">
-                                                            <div className="w-20 uppercase text-zinc-500 flex-shrink-0">{n.name}</div>
-                                                            <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden relative">
-                                                                <div className="absolute top-0 left-0 bottom-0 bg-zinc-600" style={{ width: `${n.percent}%` }} />
-                                                                {simN && (
-                                                                    <div className="absolute top-0 left-0 bottom-0 bg-emerald-500/50" style={{ width: `${simN.percent}%` }} />
-                                                                )}
+                                                        let simPercent = 0;
+                                                        let diff = 0;
+                                                        const hasSim = !!(selectedBundleIds.length > 0 && metrics.simulated);
+
+                                                        if (hasSim && metrics.simulated) {
+                                                            const simCount = metrics.simulated.chemicalDistribution[name] || 0;
+                                                            const totalSim = Object.values(metrics.simulated.chemicalDistribution).reduce((a, b) => a + b, 0) || 1;
+                                                            simPercent = (simCount / totalSim) * 100;
+                                                            diff = simPercent - currentPercent;
+                                                        }
+
+                                                        return (
+                                                            <div key={name} className="flex items-center gap-3 text-[9px]">
+                                                                <div className="w-20 uppercase text-zinc-500 flex-shrink-0">{name}</div>
+                                                                <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden relative">
+                                                                    <div className="absolute top-0 left-0 bottom-0 bg-zinc-600" style={{ width: `${currentPercent}%` }} />
+                                                                    {hasSim && (
+                                                                        <div className="absolute top-0 left-0 bottom-0 bg-emerald-500/50" style={{ width: `${simPercent}%` }} />
+                                                                    )}
+                                                                </div>
+                                                                <div className="w-12 text-right font-mono text-zinc-400">
+                                                                    {hasSim ? (
+                                                                        <span className={cn(diff > 0 ? "text-emerald-500" : "text-zinc-500")}>
+                                                                            {diff > 0 ? '+' : ''}{diff.toFixed(0)}%
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span>{currentPercent.toFixed(0)}%</span>
+                                                                    )}
+                                                                </div>
                                                             </div>
-                                                            <div className="w-12 text-right font-mono text-zinc-400">
-                                                                {selectedBundleIds.length > 0 && simN ? (
-                                                                    <span className={cn(diff > 0 ? "text-emerald-500" : "text-zinc-500")}>
-                                                                        {diff > 0 ? '+' : ''}{diff.toFixed(0)}%
-                                                                    </span>
-                                                                ) : (
-                                                                    <span>{n.percent}%</span>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
+                                                        );
+                                                    })}
                                             </div>
                                         </div>
                                     )}
